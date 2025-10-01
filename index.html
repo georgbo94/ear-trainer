@@ -71,20 +71,23 @@
       margin-top: 1rem;
     }
 
-    #controls button,
-    #controls input {
-      width: 100%;
-      height: 2.5rem;      /* ✅ same height */
-      font-size: 1rem;
-      text-align: center;
-      line-height: 1;      /* ✅ normalize text inside */
-      padding: 0;          /* ✅ remove extra padding */
-    }
+#controls button,
+#controls input {
+  width: 5rem;
+  height: 2.5rem;
+  font-size: 1rem;
+  font-family: inherit;   /* ✅ unify font */
+  line-height: 1.2;       /* ✅ consistent baseline */
+  padding: 0;             /* ✅ no extra inside space */
+  border: 1px solid #ccc; /* ✅ identical border */
+  box-sizing: border-box; /* ✅ height includes border */
+  text-align: center;
+}
 
     /* Pitch set input narrower font */
-    #guessInput {
-      font-family: monospace;
-    }
+#guessInput {
+  font-family: monospace; /* if you want different font */
+}
 
     /* Feedback and summary text */
     #feedback,
