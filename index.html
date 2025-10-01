@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ear Trainer</title>
+
+  <!-- ✅ Add these inside <head> -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+  <main>
+    <h1>🎵 Ear Trainer</h1>
+
+    <!-- User -->
+    <section id="userSection">
+      <h3>👤 User</h3>
+      <table>
+        <tr>
+          <td>User:</td>
+          <td colspan="2">
+            <select id="userSelect" style="width:6rem;"></select>
+          </td>
+          <td><button id="newUserBtn">New User</button></td>
+          <td><button id="deleteUserBtn">Delete User</button></td>
+        </tr>
+      </table>
+    </section>
+
+    <!-- Settings -->
+    <section id="settings">
+      <h3>⚙️ Settings</h3>
+      <table>
+        <tr>
+          <td># Notes:</td>
+          <td><select id="cardMin" style="width:4rem;"></select></td>
+          <td>–</td>
+          <td><select id="cardMax" style="width:4rem;"></select></td>
+        </tr>
+        <tr>
+          <td>MIDI range:</td>
+          <td><select id="midiLow" style="width:4rem;"></select></td>
+          <td>–</td>
+          <td><select id="midiHigh" style="width:4rem;"></select></td>
+        </tr>
+        <tr>
+          <td>Voicing span:</td>
+          <td><select id="spanMin" style="width:4rem;"></select></td>
+          <td>–</td>
+          <td><select id="spanMax" style="width:4rem;"></select></td>
+        </tr>
+        <tr>
+          <td>Focus:</td>
+          <td><select id="mixRatio" style="width:4rem;"></select></td>
+        </tr>
+      </table>
+    </section>
+
+    <!-- Controls -->
+    <section id="controls">
+      <div>
+        <button id="newSetBtn">▶ New chord</button>
+        <button id="replaySetBtn">🔁 Replay chord</button>
+      </div>
+      <div>
+        <input type="text" id="guessInput" placeholder="Enter pitch set here…" style="width:12rem;">
+        <button id="submitBtn">Submit Guess</button>
+      </div>
+    </section>
+
+    <p id="feedback"></p>
+    <p id="summary"></p>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js")
+        .then(() => console.log("Service Worker registered"));
+    }
+    </script>
+</body>
+</html>
