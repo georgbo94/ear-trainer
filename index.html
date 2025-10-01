@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-  <!-- 🎨 Mobile-friendly styling -->
+  <!-- 🎨 Mobile-friendly rectangular styling -->
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -33,23 +33,27 @@
     }
 
     button, select, input {
+      -webkit-appearance: none;
+      appearance: none;
+      border-radius: 0;           /* ✅ force rectangular */
       font-size: 1rem;
       padding: 0.5rem 0.8rem;
-      min-height: 44px; /* ✅ large tap targets */
-      border-radius: 6px;
+      min-height: 44px;           /* ✅ big tap targets */
       border: 1px solid #ccc;
       background: #fff;
+      color: #000;
     }
 
     button {
       background: #007aff;
-      color: #fff;
+      color: white;
       border: none;
       cursor: pointer;
     }
 
     button:disabled {
       background: #aaa;
+      color: #666;
       cursor: default;
     }
 
@@ -66,7 +70,7 @@
 </head>
 <body>
   <main>
-    <h1>🎵 Ear Trainer</h1>
+    <h1>🎵 Pitch Set Trainer</h1>
 
     <!-- User -->
     <section id="userSection">
