@@ -404,35 +404,43 @@
     }
    
      /* ---------- feedback ---------- */
-     function updateFeedback(ok, truth, guess) {
-       const WIN = trainer.settings.win;
-       const hist = trainer.log.filter(l => keyRel(l.rel) === keyRel(truth)).slice(-WIN);
-       const correct = hist.filter(h => h.ok).length;
-       const rolling = `${correct}/${WIN}`;
-       const total = trainer.log.length;
-       const overall = total ? Math.round(trainer.log.filter(l => l.ok).length / total * 100) : 0;
-       let minAcc = 1;
-       for (const rel of trainer.universe) {
-         const k = keyRel(rel);
-         const relHist = trainer.log.filter(l => keyRel(l.rel) === k).slice(-WIN);
-         const c = relHist.filter(h => h.ok).length;
-         const acc = c / WIN;
-         if (acc < minAcc) minAcc = acc;
-       }
-       const minDisplay = `${Math.round(minAcc * WIN)}/${WIN}`;
-   
+function updateFeedback(ok, truth, guess) {
+  const WIN = trainer.settings.win;
+  const hist = trainer.log.filter(l => keyRel(l.rel) === keyRel(truth)).slice(-WIN);
+  const correct = hist.filter(h => h.ok).length;
+  const rolling = `${correct}/${WIN}`;
+  const total = trainer.log.length;
+  const overall = total ? Math.round(trainer.log.filter(l => l.ok).length / total * 100) : 0;
 
-       function formatSet(arr) {
-        return "(" + arr.join(", ") + ")";
-      }
+  let minAcc = 1;
+  for (const rel of trainer.universe) {
+    const k = keyRel(rel);
+    const relHist = trainer.log.filter(l => keyRel(l.rel) === k).slice(-WIN);
+    const c = relHist.filter(h => h.ok).length;
+    const acc = c / WIN;
+    if (acc < minAcc) minAcc = acc;
+  }
+  const minDisplay = `${Math.round(minAcc * WIN)}/${WIN}`;
 
-      el.feedback.innerHTML =
-       (ok ? "✅ Correct" : "❌ Wrong") + "<br>" +
-       "Truth: " + formatSet(truth) + " | Your guess: " + formatSet(guess) + "<br>" +
-       "Rolling accuracy: " + rolling + "<br>" +
-       "Minimum accuracy: " + minDisplay + "<br>" +
-       "Overall accuracy: " + overall + "%";
-     }
+  function formatSet(arr) {
+    return "(" + arr.join(", ") + ")";
+  }
+
+  let msg = "";
+  if (ok) {
+    msg = `Correct: <span style="color:green">${formatSet(truth)}</span>`;
+  } else {
+    msg = `Wrong: <span style="color:red">${formatSet(guess)}</span> vs. <span style="color:green">${formatSet(truth)}</span>`;
+  }
+
+  msg += "<br>" +
+         "Rolling accuracy: " + rolling + "<br>" +
+         "Minimum accuracy: " + minDisplay + "<br>" +
+         "Overall accuracy: " + overall + "%";
+
+  el.feedback.innerHTML = msg;
+}
+
    
      /* ---------- user handling ---------- */
      function switchUser(name, { skipSave = false } = {}) {
@@ -574,3 +582,4 @@
    })();
 
    
+
