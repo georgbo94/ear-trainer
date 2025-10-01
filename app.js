@@ -389,7 +389,7 @@
       }
     
       if (cur.answered) {
-        el.submitBtn.textContent = "🔁 Replay Guess";
+        el.submitBtn.textContent = "🔁 Replay guess";
         el.submitBtn.disabled = false;
         el.newSetBtn.disabled = false;
         el.replaySetBtn.disabled = false;
@@ -572,4 +572,5 @@
      try { el.newSetBtn.focus(); } catch {}
 
    })();
+
    
