@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ear Trainer</title>
+  <title>Pitch Set Trainer</title>
 
   <!-- ✅ Add these inside <head> -->
   <link rel="manifest" href="manifest.json">
@@ -45,16 +45,13 @@
     }
 
     button {
-      background: #007aff;
-      color: white;
-      border: none;
-      cursor: pointer;
+      background: #eee;    /* light gray */
+      color: #000;         /* black text */
+      border: 1px solid #ccc;
     }
-
-    button:disabled {
-      background: #aaa;
-      color: #666;
-      cursor: default;
+    
+    button:active {
+      background: #ccc;    /* darker when pressed */
     }
 
     input {
@@ -70,7 +67,7 @@
 </head>
 <body>
   <main>
-    <h1>🎵 Ear Trainer</h1>
+    <h1>🎵 Pitch Set Trainer</h1>
 
     <!-- User -->
     <section id="userSection">
@@ -141,6 +138,7 @@
   </script>
 </body>
 </html>
+
 
 
 
