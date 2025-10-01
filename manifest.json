@@ -1,6 +1,6 @@
 {
     "name": "Pitch Set Trainer",
-    "short_name": "PichSetTrainer",
+    "short_name": "PitchSetTrainer",
     "start_url": "index.html",
     "display": "standalone",
     "background_color": "#ffffff",
@@ -20,3 +20,4 @@
   }
 
   
+
