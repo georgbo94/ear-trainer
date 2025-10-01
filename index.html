@@ -44,15 +44,21 @@
       color: #000;
     }
 
-    button {
-      background: #eee;    /* light gray */
-      color: #000;         /* black text */
-      border: 1px solid #ccc;
-    }
-    
-    button:active {
-      background: #ccc;    /* darker when pressed */
-    }
+  button {
+    -webkit-appearance: none; /* remove iOS default */
+    appearance: none;
+    border-radius: 0;         /* square corners */
+    background: #eee;         /* light gray */
+    color: #000;
+    border: 1px solid #ccc;
+    font-size: 1rem;
+    padding: 0.5rem 0.8rem;
+    min-height: 44px;         /* good tap target */
+  }
+  
+  button:active {
+    background: #ccc;         /* darker gray when pressed */
+  }
 
     input {
       border: 1px solid #ccc;
@@ -138,6 +144,7 @@
   </script>
 </body>
 </html>
+
 
 
 
