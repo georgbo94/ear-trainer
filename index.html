@@ -62,22 +62,25 @@
       border: 1px solid #ddd;
     }
 
-    /* Controls section buttons: same size */
-    #controls div {
-      display: flex;
+    /* Controls section in 2x2 grid */
+    #controls {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
       gap: 0.5rem;
+      margin-top: 1rem;
     }
 
-    #controls button {
-      flex: 1;
-      min-width: 7rem;
+    #controls button,
+    #controls input {
+      width: 100%;
       height: 2.5rem;
+      font-size: 1rem;
+      text-align: center;
     }
 
-    /* Pitch set input smaller */
+    /* Pitch set input narrower font */
     #guessInput {
-      width: 6rem;
-      text-align: center;
+      font-family: monospace;
     }
 
     /* Feedback and summary text */
@@ -85,6 +88,11 @@
     #summary {
       margin-top: 1rem;
       font-size: 1rem;
+    }
+
+    /* Shorter Delete button */
+    #deleteUserBtn {
+      width: 5rem;
     }
   </style>
 </head>
@@ -103,14 +111,14 @@
             <select id="userSelect" style="width:6rem;"></select>
           </td>
           <td><button id="newUserBtn">New User</button></td>
-          <td><button id="deleteUserBtn">Delete User</button></td>
+          <td><button id="deleteUserBtn">Delete</button></td>
         </tr>
       </table>
     </section>
 
     <!-- Settings -->
     <section id="settings">
-      <h3>⚙️ Settings</h3>
+    <h3>⚙️ Settings 🐢</h3>
       <table>
         <tr>
           <td># Notes:</td>
@@ -139,14 +147,10 @@
 
     <!-- Controls -->
     <section id="controls">
-      <div>
-        <button id="newSetBtn">▶ New chord</button>
-        <button id="replaySetBtn">🔁 Replay chord</button>
-      </div>
-      <div>
-        <input type="text" inputmode="decimal" id="guessInput" placeholder="Enter pitch set…">
-        <button id="submitBtn">Submit Guess</button>
-      </div>
+      <button id="newSetBtn">▶ New chord</button>
+      <button id="replaySetBtn">🔁 Replay chord</button>
+      <input type="text" inputmode="decimal" id="guessInput" placeholder="Enter set…">
+      <button id="submitBtn">Submit Guess</button>
     </section>
 
     <p id="feedback"></p>
