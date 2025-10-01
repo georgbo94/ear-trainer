@@ -1,19 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pitch Set Trainer</title>
 
+  <!-- PWA support -->
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
+  <!-- 🎨 Mobile-friendly rectangular styling -->
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 16px;
-      line-height: 1.3;
+      font-size: 18px;
+      line-height: 1.4;
       margin: 0;
       padding: 1rem;
       background: #fafafa;
@@ -21,97 +24,78 @@
     }
 
     h1 {
-      font-size: 1.4rem;
+      font-size: 1.6rem;
       margin-bottom: 1rem;
     }
 
     h3 {
-      font-size: 1rem;
-      margin: 0.5rem 0 0.3rem;
+      font-size: 1.2rem;
+      margin: 1rem 0 0.5rem;
     }
 
-    select, input {
-      -webkit-appearance: none;
-      appearance: none;
-      border-radius: 0;
-      font-size: 0.9rem;
-      padding: 0.2rem 0.4rem;
-      height: 32px;            /* compact */
-      border: 1px solid #ccc;
-      background: #fff;
-      color: #000;
-    }
-
+    /* Base reset for inputs, selects, buttons */
+    button,
+    select,
     input {
-      width: 6rem;
-    }
-
-    table {
-      border-collapse: collapse;
-    }
-    td {
-      padding: 0.2rem 0.3rem;
-    }
-
-    /* General button style */
-    button {
       -webkit-appearance: none;
       appearance: none;
       border-radius: 0;
-      background: #eee;
-      color: #000;
+      font-size: 1rem;
       border: 1px solid #ccc;
-      font-size: 0.9rem;
-      padding: 0.2rem 0.5rem;
-      height: 32px;           /* less tall */
+      color: #000;
+      padding: 0.4rem 0.6rem;
     }
+
+    /* General button look */
+    button {
+      background: #eee;
+      min-height: 44px;
+    }
+
     button:active {
       background: #ccc;
     }
+
     button:disabled {
       background: #f5f5f5;
       color: #999;
       border: 1px solid #ddd;
     }
 
-    /* Individual widths */
-    #newUserBtn {
-      width: 6rem;
-    }
-    #deleteUserBtn {
-      width: 7rem;
-    }
-    #newSetBtn {
-      width: 8rem;
-    }
-    #replaySetBtn {
-      width: 9rem;
-    }
-    #submitBtn {
-      width: 7rem;
-    }
-
-    /* Controls layout */
+    /* Controls section buttons: same size */
     #controls div {
       display: flex;
-      gap: 0.4rem;
-      justify-content: center;
-      flex-wrap: wrap;
+      gap: 0.5rem;
     }
 
-    #feedback, #summary {
-      margin-top: 0.5rem;
-      font-size: 0.9rem;
+    #controls button {
+      flex: 1;
+      min-width: 7rem;
+      height: 2.5rem;
+    }
+
+    /* Pitch set input smaller */
+    #guessInput {
+      width: 6rem;
+      text-align: center;
+    }
+
+    /* Feedback and summary text */
+    #feedback,
+    #summary {
+      margin-top: 1rem;
+      font-size: 1rem;
     }
   </style>
 </head>
+
 <body>
   <main>
     <h1>🎹 Pitch Set Trainer 🎺</h1>
 
     <!-- User -->
     <section id="userSection">
-      <h3> 🙉🙊 User</h3>
+      <h3>👤 User</h3>
       <table>
         <tr>
           <td>User:</td>
@@ -126,7 +110,7 @@
 
     <!-- Settings -->
     <section id="settings">
-      <h3>⚙️ Settings 🐢</h3>
+      <h3>⚙️ Settings</h3>
       <table>
         <tr>
           <td># Notes:</td>
@@ -160,7 +144,7 @@
         <button id="replaySetBtn">🔁 Replay chord</button>
       </div>
       <div>
-        <input type="text" inputmode="decimal" id="guessInput" placeholder="Enter pitch set…" style="width:4rem;">
+        <input type="text" inputmode="decimal" id="guessInput" placeholder="Enter pitch set…">
         <button id="submitBtn">Submit Guess</button>
       </div>
     </section>
