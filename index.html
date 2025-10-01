@@ -68,12 +68,15 @@ button:disabled {
 
 #controls div {
   display: flex;
-  gap: 0.5rem;             /* spacing between buttons */
+  justify-content: center;  /* center buttons horizontally */
+  gap: 0.5rem;
+  flex-wrap: wrap;          /* let them wrap if space is tight */
 }
 
 #controls button {
-  flex: 1;                 /* equal width */
-  min-width: 7rem;         /* same base size */
+  flex: 0 1 auto;     /* natural size but flexible */
+  min-width: 7rem;    /* ensure good tap size */
+  max-width: 10rem;   /* prevent over-stretching on wide screens */
 }
     input {
       border: 1px solid #ccc;
@@ -159,6 +162,7 @@ button:disabled {
   </script>
 </body>
 </html>
+
 
 
 
