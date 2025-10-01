@@ -1,93 +1,113 @@
-<style>
-  html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    font-size: 16px;
-    line-height: 1.3;
-    background: #fafafa;
-    color: #222;
-    overflow: hidden; /* 🚫 prevent full page scroll */
-  }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pitch Set Trainer</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 1.3;
+      background: #fafafa;
+      color: #222;
+    }
 
-  main {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;    /* full screen always */
-    padding: 0.5rem;
-    box-sizing: border-box;
-  }
+    main {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;         /* fill viewport */
+      padding: 0.5rem;
+      box-sizing: border-box;
+    }
 
-  h1 {
-    font-size: 1.4rem;
-    margin: 0.5rem 0;
-  }
+    h1 {
+      font-size: 1.4rem;
+      margin: 0.5rem 0;
+    }
 
-  section {
-    margin-bottom: 0.3rem;
-  }
+    section {
+      margin-bottom: 0.3rem;
+    }
 
-  button, select, input {
-    font-size: 0.9rem;
-    padding: 0.3rem 0.5rem;
-    height: auto;
-    border: 1px solid #ccc;
-    background: #fff;
-  }
+    button, select, input {
+      font-size: 0.9rem;
+      padding: 0.3rem 0.5rem;
+      border: 1px solid #ccc;
+      background: #fff;
+    }
 
-  /* Controls section */
-  #controls {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: center;
-  }
-  #controls div {
-    display: flex;
-    gap: 0.4rem;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-  #controls button {
-    min-width: 5.5rem;
-    max-width: 10rem;
-  }
+    /* Controls */
+    #controls {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      align-items: center;
+      margin-top: auto;  /* push controls near bottom */
+    }
 
-  /* ✅ Exactly 5 lines reserved for messages */
-  #messages {
-    margin-top: 0.5rem;
-    font-size: 0.9rem;
-    line-height: 1.3;
-    height: calc(1.3em * 5); /* 5 lines */
-    overflow-y: auto;
-    border-top: 1px solid #ddd;
-    padding-top: 0.3rem;
-  }
-</style>
+    #controls div {
+      display: flex;
+      gap: 0.4rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
 
-<main>
-  <h1>🎹 Pitch Set Trainer 🎺</h1>
+    #controls button {
+      min-width: 5.5rem;
+      max-width: 10rem;
+    }
 
-  <!-- user + settings -->
-  <section id="userSection"> ... </section>
-  <section id="settings"> ... </section>
+    /* ✅ Reserve exactly 5 lines for feedback/summary */
+    #messages {
+      font-size: 0.9rem;
+      line-height: 1.3;
+      height: calc(1.3em * 5);  /* 5 lines */
+      overflow-y: auto;
+      border-top: 1px solid #ddd;
+      padding-top: 0.3rem;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>🎹 Pitch Set Trainer 🎺</h1>
 
-  <!-- controls -->
-  <section id="controls">
-    <div>
-      <button id="newSetBtn">▶ New</button>
-      <button id="replaySetBtn">🔁 Replay</button>
+    <!-- User + Settings -->
+    <section id="userSection">
+      <h3>User</h3>
+      <select id="userSelect"><option>Demo</option></select>
+      <button>New</button>
+      <button>Delete</button>
+    </section>
+
+    <section id="settings">
+      <h3>Settings</h3>
+      <select><option>1</option></select>
+      <select><option>2</option></select>
+    </section>
+
+    <!-- Controls -->
+    <section id="controls">
+      <div>
+        <button id="newSetBtn">▶ New</button>
+        <button id="replaySetBtn">🔁 Replay</button>
+      </div>
+      <div>
+        <input type="text" id="guessInput" placeholder="Enter set…">
+        <button id="submitBtn">Submit</button>
+      </div>
+    </section>
+
+    <!-- Feedback area (5 lines fixed) -->
+    <div id="messages">
+      <p id="feedback">Line 1</p>
+      <p id="summary">Line 2</p>
     </div>
-    <div>
-      <input type="text" id="guessInput" placeholder="Enter set…">
-      <button id="submitBtn">Submit</button>
-    </div>
-  </section>
-
-  <!-- feedback/summary reserved area -->
-  <div id="messages">
-    <p id="feedback"></p>
-    <p id="summary"></p>
-  </div>
-</main>
+  </main>
+</body>
+</html>
