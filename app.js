@@ -633,18 +633,19 @@ el.guessInput.addEventListener("keydown", e => {
     fillSelect(el.midiLow,  ranges.midiLow,  s.midiLow,  midiToNote);
     fillSelect(el.midiHigh, ranges.midiHigh, s.midiHigh, midiToNote);
 
-    if (el.mixRatio) {
-      el.mixRatio.innerHTML = "";
-      for (let v = 0.0; v <= 1.00001; v += 0.1) {
-        const val = Math.min(1, v).toFixed(1);
-        const opt = document.createElement("option");
-        opt.value = val;
-        opt.textContent = val;
-        if (Math.abs(parseFloat(val) - s.mixRatio) < 1e-6) opt.selected = true;
-        el.mixRatio.appendChild(opt);
-      }
-    }
+if (el.mixRatio) {
+  el.mixRatio.innerHTML = "";
+  for (let i = 0; i <= 10; i++) {
+    const valNum = Math.min(1, i / 10);      // 0.0, 0.1, ..., 1.0
+    const val = valNum.toFixed(1);           // "0.0", "0.1", ...
+    const opt = document.createElement("option");
+    opt.value = val;                         // keep the actual numeric value as the option value
+    opt.textContent = `${Math.round(valNum * 100)}%`; // visible label in 10% steps
+    if (Math.abs(parseFloat(val) - s.mixRatio) < 1e-6) opt.selected = true;
+    el.mixRatio.appendChild(opt);
   }
+}
+
 
   function readSettingsFromUI() {
     return {
@@ -943,7 +944,7 @@ window.addEventListener('keydown', e => {
   if (el.newUserBtn) {
     el.newUserBtn.onclick = () => {
       if (el.newUserBtn.disabled) return;
-      const name = prompt("Enter username:");
+      const name = prompt("Enter Username:");
       if (!name) return;
       const trimmed = name.trim();
       if (!trimmed) return;
@@ -958,7 +959,7 @@ window.addEventListener('keydown', e => {
     el.deleteUserBtn.onclick = () => {
       if (el.deleteUserBtn.disabled) return;
       if (currentUser === "Guest") return;
-      if (!confirm(`Delete user '${currentUser}'?`)) return;
+      if (!confirm(`Delete User '${currentUser}'?`)) return;
       const toDelete = currentUser;
       Storage.remove(toDelete);
       switchUser("Guest", { skipSave: true });
@@ -1091,5 +1092,6 @@ updateButtons();
 
    
 })();
+
 
 
