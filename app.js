@@ -311,17 +311,18 @@ class Trainer {
         .replace(/,\s*/g, " ");    // enforce comma-space style
     });
   }
-
-  if (el.guessInput) {
-    el.guessInput.addEventListener("keydown", e => {
-      if (e.key === "Enter") {
-        e.preventDefault(); // stop form submission / newline
-        if (!el.submitBtn.disabled) {
-          el.submitBtn.click(); // simulate a click on Submit
-        }
-      }
-    });
+el.guessInput.addEventListener("keydown", e => {
+  if (!e.key || e.key.length !== 1) return;           // ignore non-printable keys
+  const k = e.key.toLowerCase();
+  if (k === 'c' && el.replaySetBtn && !el.replaySetBtn.disabled) {
+    e.preventDefault();
+    handleReplay();
+  } else if (k === 'g' && el.submitBtn && !el.submitBtn.disabled) {
+    e.preventDefault();
+    handleSubmit();
   }
+});
+ 
 
   /* ---------- constraint solver ---------- */
   function computeRanges(s) {
@@ -396,63 +397,131 @@ class Trainer {
     });
   });
 
-  /* ---------- buttons state ---------- */
-    function updateButtons() {
-      const cur = trainer.current;
-    
-      if (!cur) {
-        if (el.submitBtn) {
-          el.submitBtn.innerHTML = `
-            <span style="font-size:1.3em; line-height:1;">⏎</span>
-            <span>Submit guess</span>`;
-          // keep alignment identical to replay style
-          el.submitBtn.style.display = "inline-flex";
-          el.submitBtn.style.alignItems = "center";
-          el.submitBtn.style.justifyContent = "center";
-          el.submitBtn.style.gap = "0.4rem";
-        }
-        if (el.submitBtn) el.submitBtn.disabled = true;
-        if (el.newSetBtn) el.newSetBtn.disabled = false;
-        if (el.replaySetBtn) el.replaySetBtn.disabled = true;
-        if (el.guessInput) el.guessInput.disabled = true;
-        return;
-      }
-    
-      if (cur.answered) {
-        // 🔒 EXACT replay block you tuned before
-        if (el.submitBtn) {
-          el.submitBtn.innerHTML = `
-            <span style="font-size:1.8em; line-height:1; display:inline-block; transform: translateY(-0.1em);">⟳</span>
-            <span>Replay guess</span>`;
-          el.submitBtn.style.display = "inline-flex";
-          el.submitBtn.style.alignItems = "center";
-          el.submitBtn.style.justifyContent = "center";
-          el.submitBtn.style.gap = "0.4rem";
-        }
-        if (el.submitBtn) el.submitBtn.disabled = false;
-        if (el.newSetBtn) el.newSetBtn.disabled = false;
-        if (el.replaySetBtn) el.replaySetBtn.disabled = false;
-        if (el.guessInput) el.guessInput.disabled = true;
-      } else {
-        // Submit state: ⏎ before text, same alignment as replay
-        if (el.submitBtn) {
-          el.submitBtn.innerHTML = `
-            <span style="font-size:1.3em; line-height:1;">⏎</span>
-            <span>Submit guess</span>`;
-          el.submitBtn.style.display = "inline-flex";
-          el.submitBtn.style.alignItems = "center";
-          el.submitBtn.style.justifyContent = "center";
-          el.submitBtn.style.gap = "0.4rem";
-        }
-        if (el.submitBtn) el.submitBtn.disabled = false;
-        if (el.newSetBtn) el.newSetBtn.disabled = true;
-        if (el.replaySetBtn) el.replaySetBtn.disabled = false;
-        if (el.guessInput) el.guessInput.disabled = false;
-      }
-    
-      if (el.deleteUserBtn) el.deleteUserBtn.disabled = (currentUser === "Guest");
-      if (el.newUserBtn) el.newUserBtn.disabled = false;
+// -------------- replace/update updateButtons with this version --------------
+function updateButtons() {
+  const cur = trainer.current;
+
+  // Helper label fragments (underline the important key)
+  const replayChordLabel = `Replay <u>C</u>hord`;
+  const replayGuessLabel = `Replay <u>G</u>uess`;
+  const submitLabel = `
+    <span style="font-size:1.3em; line-height:1;">⏎</span>
+    <span>Submit guess</span>`;
+
+  if (!cur) {
+    if (el.submitBtn) {
+      el.submitBtn.innerHTML = `
+        <span style="font-size:1.3em; line-height:1;">⏎</span>
+        <span>Submit guess</span>`;
+      el.submitBtn.style.display = "inline-flex";
+      el.submitBtn.style.alignItems = "center";
+      el.submitBtn.style.justifyContent = "center";
+      el.submitBtn.style.gap = "0.4rem";
     }
+    if (el.submitBtn) el.submitBtn.disabled = true;
+
+    if (el.newSetBtn) el.newSetBtn.disabled = false;
+
+    if (el.replaySetBtn) {
+      el.replaySetBtn.disabled = true;
+      // keep consistent styling and label even when disabled
+      el.replaySetBtn.innerHTML = `<span style="font-size:1.0em; margin-right:0.4rem;">⏵</span><span>${replayChordLabel}</span>`;
+      el.replaySetBtn.style.display = "inline-flex";
+      el.replaySetBtn.style.alignItems = "center";
+      el.replaySetBtn.style.justifyContent = "center";
+      el.replaySetBtn.style.gap = "0.4rem";
+    }
+
+    if (el.guessInput) el.guessInput.disabled = true;
+    return;
+  }
+
+  if (cur.answered) {
+    if (el.submitBtn) {
+      el.submitBtn.innerHTML = `
+        <span style="font-size:1.8em; line-height:1; display:inline-block; transform: translateY(-0.1em);">⟳</span>
+        <span>${replayGuessLabel}</span>`;
+      el.submitBtn.style.display = "inline-flex";
+      el.submitBtn.style.alignItems = "center";
+      el.submitBtn.style.justifyContent = "center";
+      el.submitBtn.style.gap = "0.4rem";
+    }
+    if (el.submitBtn) el.submitBtn.disabled = false;
+    if (el.newSetBtn) el.newSetBtn.disabled = false;
+
+    if (el.replaySetBtn) {
+      el.replaySetBtn.disabled = false;
+      el.replaySetBtn.innerHTML = `<span style="font-size:1.0em; margin-right:0.4rem;">⏵</span><span>${replayChordLabel}</span>`;
+      el.replaySetBtn.style.display = "inline-flex";
+      el.replaySetBtn.style.alignItems = "center";
+      el.replaySetBtn.style.justifyContent = "center";
+      el.replaySetBtn.style.gap = "0.4rem";
+    }
+
+    if (el.guessInput) el.guessInput.disabled = true;
+  } else {
+    // Submit state
+    if (el.submitBtn) {
+      el.submitBtn.innerHTML = `
+        <span style="font-size:1.3em; line-height:1;">⏎</span>
+        <span>Submit guess</span>`;
+      el.submitBtn.style.display = "inline-flex";
+      el.submitBtn.style.alignItems = "center";
+      el.submitBtn.style.justifyContent = "center";
+      el.submitBtn.style.gap = "0.4rem";
+    }
+    if (el.submitBtn) el.submitBtn.disabled = false;
+    if (el.newSetBtn) el.newSetBtn.disabled = true;
+
+    if (el.replaySetBtn) {
+      el.replaySetBtn.disabled = false;
+      el.replaySetBtn.innerHTML = `<span style="font-size:1.0em; margin-right:0.4rem;">⏵</span><span>${replayChordLabel}</span>`;
+      el.replaySetBtn.style.display = "inline-flex";
+      el.replaySetBtn.style.alignItems = "center";
+      el.replaySetBtn.style.justifyContent = "center";
+      el.replaySetBtn.style.gap = "0.4rem";
+    }
+
+    if (el.guessInput) el.guessInput.disabled = false;
+  }
+
+  if (el.deleteUserBtn) el.deleteUserBtn.disabled = (currentUser === "Guest");
+  if (el.newUserBtn) el.newUserBtn.disabled = false;
+}
+
+// -------------- add keyboard shortcuts (c = replay chord, g = replay guess) --------------
+/* Put this somewhere after updateButtons() and after el.* elements exist */
+if (el.replaySetBtn) {
+  el.replaySetBtn.accessKey = 'c';
+  el.replaySetBtn.setAttribute('aria-keyshortcuts', 'c');
+}
+if (el.submitBtn) {
+  // We use 'g' for replay-guess; note submitBtn doubles as replay guess when appropriate
+  el.submitBtn.accessKey = 'g';
+  el.submitBtn.setAttribute('aria-keyshortcuts', 'g');
+}
+
+// global key handler for C / G; don't trigger when typing in the guess input
+window.addEventListener('keydown', e => {
+  // ignore while typing in guess input (allow normal typing)
+  if (document.activeElement === el.guessInput) return;
+
+  const k = (e.key || '').toLowerCase();
+  if (k === 'c') {
+    if (el.replaySetBtn && !el.replaySetBtn.disabled) {
+      e.preventDefault();
+      handleReplay();
+    }
+  } else if (k === 'g') {
+    if (el.submitBtn && !el.submitBtn.disabled) {
+      e.preventDefault();
+      // submitBtn is used for replay-guess when in answered state;
+      // handleSubmit already covers both submit & replay-guess
+      handleSubmit();
+    }
+  }
+}, false);
+
     
   
 
@@ -546,10 +615,7 @@ class Trainer {
     updateButtons(); // still safe to call
   
 
-
-    
-    try { if (el.newSetBtn) el.newSetBtn.focus(); } catch {}
-  }
+   }
   
   
 
@@ -610,8 +676,7 @@ class Trainer {
     if (el.feedback) el.feedback.innerHTML = "";
     if (el.replaySetBtn) el.replaySetBtn.classList.remove("btn-green", "btn-red");
     if (el.submitBtn) el.submitBtn.classList.remove("btn-green", "btn-red");
-    try { if (el.guessInput) el.guessInput.focus(); } catch {}
-  }
+    focusAfterEnterReleased(el.guessInput);  }
 
   function handleReplay() {
     if (!el.replaySetBtn || el.replaySetBtn.disabled) return;
@@ -630,8 +695,7 @@ class Trainer {
       if (el.guessInput) { el.guessInput.value = ""; el.guessInput.disabled = true; }
       if (el.newSetBtn) el.newSetBtn.disabled = false;
       updateButtons();
-      try { if (el.newSetBtn) el.newSetBtn.focus(); } catch {}
-    } else {
+      focusAfterEnterReleased(el.newSetBtn);    } else {
       const last = trainer.log[trainer.log.length - 1];
       if (last) trainer.playGuess(last.guess);
     }
@@ -653,6 +717,28 @@ class Trainer {
     });
   }
 
+  // === Enter-safe focus helper ===
+const keysDown = new Set();
+window.addEventListener("keydown", e => keysDown.add(e.key), true);
+window.addEventListener("keyup",   e => keysDown.delete(e.key), true);
+
+function focusAfterEnterReleased(elem) {
+  if (!elem) return;
+  if (keysDown.has("Enter")) {
+    const onUp = (e) => {
+      if (e.key === "Enter") {
+        window.removeEventListener("keyup", onUp, true);
+        setTimeout(() => elem.focus(), 0); // defer until after release
+      }
+    };
+    window.addEventListener("keyup", onUp, true);
+  } else {
+    elem.focus();
+  }
+}
+ 
+
+
   /* ---------- startup ---------- */
   currentUser = Storage.lastUser();
   if (currentUser !== "Guest" && !Storage.listUsers().includes(currentUser)) {
@@ -668,23 +754,15 @@ class Trainer {
 
   refreshUserSelect();
   updateButtons();
-  document.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      const active = document.activeElement;
-      if (active && active.tagName === "BUTTON" && !active.disabled) {
-        if (!active._enterPressed) {
-          active._enterPressed = true;
-          active.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-          e.preventDefault();
-        }
-      }
-    }
-  });
+
+ 
   refreshUserSelect();
   if (currentUser === "Guest") {
     el.deleteUserBtn.disabled = true;
   }
 updateButtons();
+
+
 
    
 })();
