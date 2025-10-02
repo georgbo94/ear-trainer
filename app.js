@@ -1,11 +1,3 @@
-/* =========================================================
-   app.js — final hardened version
-   - No .click() hacks
-   - updateButtons() always sets disabled properties
-   - Runtime CSS safety-net: button:disabled { pointer-events: none !important; }
-   - Visuals unchanged; disabled buttons truly unclickable
-   - Added: Enter key submits guesses
-   ========================================================= */
 
 /* -------------------------
    Utilities & Defaults
@@ -97,9 +89,11 @@ class Synth {
     const Ctor = window.AudioContext || window.webkitAudioContext;
     this.ctx = new Ctor();
     this._unlocked = false;
+    this._currentVoice = null; // track the one active voice
+
     const unlock = () => {
       if (this._unlocked) return;
-      this.ctx.resume().then(() => { this._unlocked = true; }).catch(()=>{});
+      this.ctx.resume().then(() => { this._unlocked = true; }).catch(() => {});
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
     };
@@ -107,12 +101,30 @@ class Synth {
     window.addEventListener("keydown", unlock);
   }
 
+  stopCurrent() {
+    if (!this._currentVoice) return;
+    const { nodes, timer } = this._currentVoice;
+    clearTimeout(timer);
+    for (const node of nodes) {
+      try {
+        if (node.stop) node.stop();
+        if (node.disconnect) node.disconnect();
+      } catch {}
+    }
+    this._currentVoice = null;
+  }
+
   playChord(midis, dur = DEFAULTS.duration) {
     if (!midis.length) return;
+
+    // interrupt anything playing
+    this.stopCurrent();
+
     const now = this.ctx.currentTime;
     const masterGain = this.ctx.createGain();
     masterGain.connect(this.ctx.destination);
 
+    // ADSR envelope
     const A = 0.02, D = 0.15, S = 0.75, R = 0.12;
     masterGain.gain.setValueAtTime(0, now);
     masterGain.gain.linearRampToValueAtTime(1, now + A);
@@ -120,6 +132,9 @@ class Synth {
     masterGain.gain.setValueAtTime(S, now + dur - R);
     masterGain.gain.linearRampToValueAtTime(0, now + dur);
 
+    const nodes = [masterGain];
+
+    // build harmonics
     midis.forEach(midi => {
       const f0 = midiToHz(midi);
       for (let h = 1; h <= 11; h++) {
@@ -131,10 +146,25 @@ class Synth {
         osc.connect(g).connect(masterGain);
         osc.start(now);
         osc.stop(now + dur);
+        nodes.push(osc, g);
       }
     });
+
+    // cleanup after full duration
+    const timer = setTimeout(() => {
+      for (const node of nodes) {
+        try {
+          if (node.stop) node.stop();
+          if (node.disconnect) node.disconnect();
+        } catch {}
+      }
+      this._currentVoice = null;
+    }, dur * 1000 + 100);
+
+    this._currentVoice = { nodes, timer };
   }
 }
+
 
 /* -------------------------
    Trainer
@@ -253,6 +283,8 @@ class Trainer {
       // if injection fails, we'll still rely on JS guards
       console.warn("Failed to inject disabled-safety CSS:", e);
     }
+
+    
   })();
 
   const el = {
@@ -358,56 +390,74 @@ class Trainer {
   });
 
   /* ---------- buttons state ---------- */
-  function updateButtons() {
-    const cur = trainer.current;
-
-    if (!cur) {
-      if (el.submitBtn) el.submitBtn.textContent = "Submit guess";
-      if (el.submitBtn) el.submitBtn.disabled = true;
-      if (el.newSetBtn) el.newSetBtn.disabled = false;
-      if (el.replaySetBtn) el.replaySetBtn.disabled = true;
-      if (el.guessInput) el.guessInput.disabled = true;
-      return;
-    }
-
-    if (cur.answered) {
-      if (el.submitBtn) {
-        el.submitBtn.innerHTML = `
-          <span style="font-size:1.8em; line-height:1; display:inline-block; transform: translateY(-0.1em);">⟳</span>
-          <span>Replay guess</span>`;
-        el.submitBtn.style.display = "inline-flex";
-        el.submitBtn.style.alignItems = "center";
-        el.submitBtn.style.justifyContent = "center";
-        el.submitBtn.style.gap = "0.4rem";
+    function updateButtons() {
+      const cur = trainer.current;
+    
+      if (!cur) {
+        if (el.submitBtn) {
+          el.submitBtn.innerHTML = `
+            <span style="font-size:1.3em; line-height:1;">⏎</span>
+            <span>Submit guess</span>`;
+          // keep alignment identical to replay style
+          el.submitBtn.style.display = "inline-flex";
+          el.submitBtn.style.alignItems = "center";
+          el.submitBtn.style.justifyContent = "center";
+          el.submitBtn.style.gap = "0.4rem";
+        }
+        if (el.submitBtn) el.submitBtn.disabled = true;
+        if (el.newSetBtn) el.newSetBtn.disabled = false;
+        if (el.replaySetBtn) el.replaySetBtn.disabled = true;
+        if (el.guessInput) el.guessInput.disabled = true;
+        return;
       }
-
-      if (el.submitBtn) el.submitBtn.disabled = false;
-      if (el.newSetBtn) el.newSetBtn.disabled = false;
-      if (el.replaySetBtn) el.replaySetBtn.disabled = false;
-      if (el.guessInput) el.guessInput.disabled = true;
-    } else {
-      if (el.submitBtn) el.submitBtn.textContent = "Submit Guess";
-      if (el.submitBtn) el.submitBtn.disabled = false;
-      if (el.newSetBtn) el.newSetBtn.disabled = true;
-      if (el.replaySetBtn) el.replaySetBtn.disabled = false;
-      if (el.guessInput) el.guessInput.disabled = false;
+    
+      if (cur.answered) {
+        // 🔒 EXACT replay block you tuned before
+        if (el.submitBtn) {
+          el.submitBtn.innerHTML = `
+            <span style="font-size:1.8em; line-height:1; display:inline-block; transform: translateY(-0.1em);">⟳</span>
+            <span>Replay guess</span>`;
+          el.submitBtn.style.display = "inline-flex";
+          el.submitBtn.style.alignItems = "center";
+          el.submitBtn.style.justifyContent = "center";
+          el.submitBtn.style.gap = "0.4rem";
+        }
+        if (el.submitBtn) el.submitBtn.disabled = false;
+        if (el.newSetBtn) el.newSetBtn.disabled = false;
+        if (el.replaySetBtn) el.replaySetBtn.disabled = false;
+        if (el.guessInput) el.guessInput.disabled = true;
+      } else {
+        // Submit state: ⏎ before text, same alignment as replay
+        if (el.submitBtn) {
+          el.submitBtn.innerHTML = `
+            <span style="font-size:1.3em; line-height:1;">⏎</span>
+            <span>Submit guess</span>`;
+          el.submitBtn.style.display = "inline-flex";
+          el.submitBtn.style.alignItems = "center";
+          el.submitBtn.style.justifyContent = "center";
+          el.submitBtn.style.gap = "0.4rem";
+        }
+        if (el.submitBtn) el.submitBtn.disabled = false;
+        if (el.newSetBtn) el.newSetBtn.disabled = true;
+        if (el.replaySetBtn) el.replaySetBtn.disabled = false;
+        if (el.guessInput) el.guessInput.disabled = false;
+      }
+    
+      if (el.deleteUserBtn) el.deleteUserBtn.disabled = (currentUser === "Guest");
+      if (el.newUserBtn) el.newUserBtn.disabled = false;
     }
-
-    if (el.deleteUserBtn) {
-      el.deleteUserBtn.disabled = (currentUser === "Guest");
-    }
-    if (el.newUserBtn) el.newUserBtn.disabled = false;
-  }
+    
+  
 
   /* ---------- feedback ---------- */
   function updateFeedback(ok, truth, guess) {
     const WIN = trainer.settings.win;
+  
+    // rolling accuracy for this rel
     const hist = trainer.log.filter(l => keyRel(l.rel) === keyRel(truth)).slice(-WIN);
     const correct = hist.filter(h => h.ok).length;
-    const rolling = `${correct}/${WIN}`;
-    const total = trainer.log.length;
-    const overall = total ? Math.round(trainer.log.filter(l => l.ok).length / total * 100) : 0;
-
+  
+    // minimum accuracy across all rels
     let minAcc = 1;
     for (const rel of trainer.universe) {
       const k = keyRel(rel);
@@ -416,10 +466,19 @@ class Trainer {
       const acc = c / WIN;
       if (acc < minAcc) minAcc = acc;
     }
-    const minDisplay = `${Math.round(minAcc * WIN)}/${WIN}`;
-
+    const minCorrect = Math.round(minAcc * WIN);
+  
+    // overall accuracy
+    const total = trainer.log.length;
+    const overall = total ? Math.round(trainer.log.filter(l => l.ok).length / total * 100) : 0;
+  
+    // formatted strings (monospace padding with spaces, not zeros)
+    const rolling       = `${correct.toString().padStart(2," ")}/${WIN}`;
+    const minDisplay    = `${minCorrect.toString().padStart(2," ")}/${WIN}`;
+    const overallDisplay = `${overall.toString().padStart(3," ")}%`;
+  
     function formatSet(arr) { return "(" + arr.join(", ") + ")"; }
-
+  
     let msg = "";
     if (ok) {
       msg = `
@@ -435,46 +494,58 @@ class Trainer {
           vs. 
           <span style="color:rgb(48, 134, 48)">${formatSet(truth)}</span> 🙊
         </div>`;
+      if (el.replaySetBtn) el.replaySetBtn.classList.add("btn-green");
+      if (el.submitBtn) el.submitBtn.classList.add("btn-red");
     }
-
+  
     msg += `
-      <div style="text-align:left; margin-top:0.5rem; margin-left:3.7rem; font-family:monospace;">
-        Rolling accuracy: <strong>${rolling}</strong><br>
-        Minimum accuracy: <strong>${minDisplay}</strong><br>
-        Overall accuracy: <strong>${overall}%</strong>
-      </div>`;
-    if (el.replaySetBtn) el.replaySetBtn.classList.add("btn-green");
-    if (el.submitBtn) el.submitBtn.classList.add("btn-red");
-
+    <div style="text-align:left; margin-top:0.5rem; margin-left:3.7rem; font-family:monospace;">
+      Rolling accuracy: <strong>${String(correct).padStart(2, '\u00A0')}/${WIN}</strong><br>
+      Minimum accuracy: <strong>${String(Math.round(minAcc * WIN)).padStart(2, '\u00A0')}/${WIN}</strong><br>
+      Overall accuracy: <strong>${String(overall).padStart(4, '\u00A0')}%</strong>
+    </div>`;
+  
     if (el.feedback) el.feedback.innerHTML = msg;
   }
+  
 
   /* ---------- user handling ---------- */
   function switchUser(name, { skipSave = false } = {}) {
+    // Save old user
     if (!skipSave && currentUser !== "Guest") {
       Storage.save(currentUser, trainer.snapshotForSave());
     }
+  
+    // Update global
     currentUser = name;
-
-    if (currentUser === "Guest") {
-      const data = Storage.load("Guest");
-      trainer.changeSettings(data.settings);
-      trainer.log = [];
-    } else {
-      const data = Storage.load(currentUser);
-      trainer.changeSettings(data.settings);
-      trainer.log = data.log;
-    }
-
+  
+    // Load user data
+    const data = Storage.load(currentUser);
+    trainer.changeSettings(data.settings);
+    trainer.log = data.log || [];
     trainer.current = null;
+  
+    // Reset UI
     if (el.feedback) el.feedback.innerHTML = "";
     renderSettingsUI(trainer.settings);
     trainer.changeSettings(readSettingsFromUI());
-    updateButtons();
     refreshUserSelect();
+  
+    // 🔒 Force delete button state right here
+    if (el.deleteUserBtn) {
+      el.deleteUserBtn.disabled = (currentUser === "Guest");
+    }
+  
+    updateButtons(); // still safe to call
+  
 
+
+    
     try { if (el.newSetBtn) el.newSetBtn.focus(); } catch {}
   }
+  
+  
+
 
   function refreshUserSelect() {
     if (!el.userSelect) return;
@@ -590,5 +661,22 @@ class Trainer {
 
   refreshUserSelect();
   updateButtons();
+  document.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      const active = document.activeElement;
+      if (active && active.tagName === "BUTTON" && !active.disabled) {
+        if (!active._enterPressed) {
+          active._enterPressed = true;
+          active.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+          e.preventDefault();
+        }
+      }
+    }
+  });
+  refreshUserSelect();
+  if (currentUser === "Guest") {
+    el.deleteUserBtn.disabled = true;
+  }
+updateButtons();
   try { if (el.newSetBtn) el.newSetBtn.focus(); } catch {}
 })();
