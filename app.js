@@ -679,21 +679,8 @@ class Trainer {
   }
 updateButtons();
 
-if (el.guessInput) {
-  // Start normal — no readonly here
-  // Safari will still try to scroll, so we override focus instead
-
-  el.guessInput.addEventListener("focus", e => {
-    // Immediately prevent Safari scroll-on-focus
-    requestAnimationFrame(() => {
-      try {
-        el.guessInput.blur(); // cancel Safari's automatic scroll
-        el.guessInput.focus({ preventScroll: true }); // refocus without movement
-      } catch (err) {}
-    });
-  });
-}
    
 })();
+
 
 
