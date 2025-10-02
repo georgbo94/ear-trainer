@@ -645,7 +645,7 @@ if (el.mixRatio) {
     el.mixRatio.appendChild(opt);
   }
 }
-
+}
 
   function readSettingsFromUI() {
     return {
@@ -1092,6 +1092,7 @@ updateButtons();
 
    
 })();
+
 
 
 
