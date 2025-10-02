@@ -1,14 +1,12 @@
-const CACHE_NAME = 'eartrainer-v1000000';
+const CACHE_NAME = 'eartrainer-vas1';
 
-// List only files that actually exist in your deployed site
 const FILES_TO_CACHE = [
-  './',
-  './index.html',
-  './manifest.json',
-  './app.js',
-  './style.css',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
+  '/ear-trainer/',
+  '/ear-trainer/index.html',
+  '/ear-trainer/manifest.json',
+  '/ear-trainer/app.js',
+  '/ear-trainer/icons/icon-192.png',
+  '/ear-trainer/icons/icon-512.png'
 ];
 
 // Install: cache all the important files
@@ -38,28 +36,29 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Fetch: network-first for non-navigation, fallback to cache;
-// For navigations (HTML pages), fallback to cached index.html
+// Fetch: serve from network, fallback to cache
 self.addEventListener('fetch', event => {
   const req = event.request;
 
-  // Handle navigation requests (page loads, links)
+  // Handle page navigations
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req).catch(() => caches.match('./index.html'))
+      (async () => {
+        try {
+          return await fetch(req);
+        } catch (err) {
+          // offline fallback to cached index.html
+          return caches.match('/ear-trainer/index.html');
+        }
+      })()
     );
     return;
   }
 
-  // For other GET requests, try cache first, then network
+  // Handle other GET requests
   if (req.method === 'GET') {
     event.respondWith(
-      caches.match(req).then(cached =>
-        cached || fetch(req).then(response => {
-          // Optionally: cache new requests dynamically
-          return response;
-        })
-      )
+      caches.match(req).then(cached => cached || fetch(req))
     );
   }
 });
