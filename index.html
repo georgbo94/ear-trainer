@@ -17,27 +17,32 @@
 
   <!-- 🎨 Mobile-friendly rectangular styling -->
   <style>
+html, body {
+  height: 100%;        /* fill the viewport */
+  margin: 0;
+  padding: 0;
+  overflow: hidden;    /* 🚫 disable body scroll */
+}
+
 body {
   font-family: monospace;
   font-size: 18px;
   line-height: 1.4;
-  margin: 0;
-  padding: 0.5rem 1rem;
   background: #fafafa;
   color: #222;
 
-  /* added for phone-on-left look */
   display: flex;
-  justify-content: flex-start; /* align card to left */
+  justify-content: flex-start; /* keep your “phone-on-left” look */
+  padding: 0.05rem 0.05rem 0.05rem 1.5rem ;             /* keep small padding if you want */
 }
 
 main {
-  height: 100%;
+  flex: 1;              /* take up all available vertical space */
   display: flex;
   flex-direction: column;
-
-
+  overflow-y: auto;     /* ✅ only scroll here if content actually exceeds screen */
 }
+
 
 /* scaling when screen smaller than design */
 @media (max-width: 336px) {
@@ -56,7 +61,7 @@ main {
   font-size: 1rem;
   line-height: 1.3;
   width: 20rem;       /* fixed width */
-  min-height: 6rem;   /* reserve space */
+  min-height: 0rem;   /* reserve space */
   overflow: visible;  /* show all content */
 }
 
@@ -115,7 +120,7 @@ input {
 
 #controls button,
 #controls input {
-  width: 10rem;
+  width: 9.6rem;
   height: 2.5rem;
   font-size: 1rem;
   font-family: inherit;   /* ✅ unify font */
@@ -124,6 +129,7 @@ input {
   border: 1px solid #ccc; /* ✅ identical border */
   box-sizing: border-box; /* ✅ height includes border */
   text-align: center;
+  margin-left:0.2rem;
 }
 
     /* Pitch set input narrower font */
@@ -151,10 +157,20 @@ input {
   min-width: 8rem;      /* ensures it’s not too tiny */
 }
 
+button:active,
+button.force-active {
+  transform: scale(0.95);
+  transition: transform 0.5s;
+}
 
 button:active,
 button.pressed {
   background: #ccc;
+}
+
+.game-focus {
+  outline: 2px solid yellow;
+  outline-offset: 2px;
 }
 
 .btn-green {
@@ -246,8 +262,9 @@ textarea:focus-visible {
 <span>Replay chord</span>
 </button>
       <input type="text" inputmode="decimal" id="guessInput" placeholder="Enter set…">
-      <button id="submitBtn">Submit Guess</button>
-    </section>
+      <button id="submitBtn">
+        Submit Guess <span style="font-size:1.3em; line-height:1;">⏎</span>
+      </button>    </section>
     <div class="section-line"></div>
 
     <div id="feedbackBox">
