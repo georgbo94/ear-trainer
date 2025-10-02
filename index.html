@@ -48,6 +48,19 @@ main {
 }
 
 
+/* Default: no underline (safe fallback) */
+.accesskey-u { text-decoration: none; }
+
+/* Show underline only on devices likely to have a keyboard/mouse */
+@media (any-hover: hover) and (any-pointer: fine) {
+  .accesskey-u { text-decoration: underline; }
+}
+
+/* Ensure hidden on coarse/touch pointers (redundant but explicit) */
+@media (hover: none), (pointer: coarse) {
+  .accesskey-u { text-decoration: none; }
+}
+
 /* scaling when screen smaller than design */
 @media (max-width: 336px) {
   main {

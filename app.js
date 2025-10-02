@@ -154,6 +154,19 @@ if (!Synth._unlockInstalled) {
       }
     });
   }
+
+  stopAll() {
+    try {
+      if (this.currentNodes && this.currentNodes.length) {
+        this.currentNodes.forEach(n => {
+          try { n.stop(); } catch (e) { /* ignore already-stopped errors */ }
+        });
+        this.currentNodes = [];
+      }
+    } catch (e) {
+      console.warn("Synth.stopAll() failed:", e);
+    }
+  }
 }
 
 
@@ -183,36 +196,221 @@ function generateUniverse({ card: [cMin, cMax], span: [sMin, sMax] }) {
   return universe;
 }
 
+
 class Trainer {
-  constructor(synth, initialSettings = {}) {
+  constructor(synth, initialSettings = {}, initialLog = []) {
     this.synth = synth;
     this.settings = { ...DEFAULTS, ...initialSettings };
     this.universe = generateUniverse(this.settings);
     this.current = null;
-    this.log = [];
+    this.log = Array.isArray(initialLog) ? initialLog.slice() : [];
+
+    // RNG: allow optional seeded RNG via initialSettings.rng, otherwise Math.random
+    this.rng = (initialSettings && typeof initialSettings.rng === 'function')
+      ? initialSettings.rng
+      : Math.random;
+
+    // caches for fast sampling & incremental stats
+    this._cacheKeys = null;         // array of keyRel(rel)
+    this._cacheKeyToIndex = null;   // Map keyRel -> universe index
+    this._statsByIndex = null;      // array parallel to universe: { buffer: [], correct: number }
+
+    // reached-count bookkeeping (exact if N <= sampleLimit, otherwise approx)
+    this._reachedCount = 0;
+    this._reachedIsApprox = false;
+    this._sampleLimit = 150000;    // universe size threshold to switch to approximate counting
+    this._sampleK = 2000;          // number of samples for approximation
+    this._approxRefreshEvery = 500; // refresh approx estimate every N submits
+    this._submitCounter = 0;
+
+    // build caches and fill buffers from existing log
+    this._rebuildUniverseAndMigrate();
   }
 
+  /* -------------------------
+     Cache & migration helpers
+     ------------------------- */
+  _buildCacheIfNeeded() {
+    if (this._cacheKeys && this._cacheKeyToIndex && this._statsByIndex) return;
+    this._rebuildUniverseAndMigrate();
+  }
+
+  // Rebuild universe caches and migrate existing stats where possible.
+  // Fills per-rel buffers from this.log (backwards) up to WIN entries each.
+  _rebuildUniverseAndMigrate() {
+    // Recompute universe (call this when settings change)
+    this.universe = generateUniverse(this.settings);
+
+    const newKeys = this.universe.map(rel => keyRel(rel));
+    const newKeyToIndex = new Map(newKeys.map((k, i) => [k, i]));
+
+    const N = newKeys.length;
+    const WIN = this.settings.win || 10;
+
+    // new empty stats
+    const newStats = Array.from({ length: N }, () => ({ buffer: [], correct: 0 }));
+
+    // migrate buffers for keys that persist
+    if (this._cacheKeys && this._statsByIndex) {
+      for (let i = 0; i < this._cacheKeys.length; i++) {
+        const oldKey = this._cacheKeys[i];
+        const newIdx = newKeyToIndex.get(oldKey);
+        if (newIdx !== undefined && this._statsByIndex[i]) {
+          const oldBuf = (this._statsByIndex[i].buffer || []).slice(-WIN);
+          newStats[newIdx].buffer = oldBuf.slice();
+          newStats[newIdx].correct = newStats[newIdx].buffer.reduce((s, v) => s + v, 0);
+        }
+      }
+    }
+
+    // fill missing buffers from log by backward scan (most recent first)
+    const remaining = new Set();
+    for (let i = 0; i < N; i++) {
+      if (newStats[i].buffer.length < WIN) remaining.add(i);
+    }
+
+    if (remaining.size > 0 && Array.isArray(this.log) && this.log.length > 0) {
+      for (let i = this.log.length - 1; i >= 0 && remaining.size > 0; i--) {
+        const entry = this.log[i];
+        if (!entry || !entry.rel) continue;
+        const k = keyRel(entry.rel);
+        const idx = newKeyToIndex.get(k);
+        if (idx === undefined) continue;
+        const s = newStats[idx];
+        if (s.buffer.length < WIN) {
+          // unshift because we walk backwards; result is oldest-first
+          s.buffer.unshift(entry.ok ? 1 : 0);
+          if (s.buffer.length > WIN) s.buffer.shift();
+          s.correct = s.buffer.reduce((a, b) => a + b, 0);
+          if (s.buffer.length >= WIN) remaining.delete(idx);
+        }
+      }
+    }
+
+    // finalize caches
+    this._cacheKeys = newKeys;
+    this._cacheKeyToIndex = newKeyToIndex;
+    this._statsByIndex = newStats;
+
+    // compute reachedCount (exact or approximate)
+    const rng = (this.rng && typeof this.rng === 'function') ? this.rng : Math.random;
+    const AIM = (typeof this.settings.aim === 'number') ? this.settings.aim : 0.8;
+
+    if (N <= this._sampleLimit) {
+      // exact
+      let rc = 0;
+      for (let i = 0; i < N; i++) {
+        const s = this._statsByIndex[i] || { correct: 0 };
+        const acc = (s.correct || 0) / WIN; // ALWAYS divide by WIN
+        if (acc >= AIM) rc++;
+      }
+      this._reachedCount = rc;
+      this._reachedIsApprox = false;
+    } else {
+      // approximate by sampling K indices
+      const K = Math.min(this._sampleK, N);
+      let hits = 0;
+      for (let t = 0; t < K; t++) {
+        const i = Math.floor(rng() * N);
+        const s = this._statsByIndex[i] || { correct: 0 };
+        if ((s.correct || 0) / WIN >= AIM) hits++;
+      }
+      this._reachedCount = Math.round((hits / K) * N);
+      this._reachedIsApprox = true;
+    }
+
+    // drop current if its rel no longer exists
+    if (this.current && this.current.rel) {
+      const curKey = keyRel(this.current.rel);
+      if (!this._cacheKeyToIndex.has(curKey)) this.current = null;
+    }
+  }
+
+  /* -------------------------
+     Sampling: _randomPick()
+     ------------------------- */
+  _randomPick() {
+    this._buildCacheIfNeeded();
+
+    const UNIVERSE = this.universe;
+    if (!UNIVERSE || UNIVERSE.length === 0) return null;
+
+    const WIN = this.settings.win || 10;
+    const AIM = (typeof this.settings.aim === 'number') ? this.settings.aim : 0.8;
+    const MIX_RATIO = (typeof this.settings.mixRatio === 'number') ? this.settings.mixRatio : 0.5;
+    const rng = (this.rng && typeof this.rng === 'function') ? this.rng : Math.random;
+
+    const N = UNIVERSE.length;
+    const stats = this._statsByIndex || Array.from({ length: N }, () => ({ buffer: [], correct: 0 }));
+
+    // compute raw weights per your semantics (acc = correct / WIN always)
+    const rawWeights = new Array(N);
+    let totalRaw = 0;
+    for (let i = 0; i < N; i++) {
+      const s = stats[i] || { correct: 0 };
+      const acc = (s.correct || 0) / WIN;
+      const w = Math.max(0, AIM - acc);
+      const jitter = rng() * 1e-12; // tiny jitter to break exact ties
+      const wj = w + jitter;
+      rawWeights[i] = wj;
+      totalRaw += wj;
+    }
+
+    // with probability MIX_RATIO use weighted sampling (roulette), else uniform
+    if (rng() < MIX_RATIO) {
+      if (totalRaw <= 1e-12) {
+        return UNIVERSE[Math.floor(rng() * N)];
+      }
+      let r = rng() * totalRaw;
+      for (let i = 0; i < N; i++) {
+        r -= rawWeights[i];
+        if (r <= 0) return UNIVERSE[i];
+      }
+      return UNIVERSE[N - 1];
+    }
+
+    // uniform fallback
+    return UNIVERSE[Math.floor(rng() * N)];
+  }
+
+  /* -------------------------
+     Public API
+     ------------------------- */
   changeSettings(newSettings) {
     this.settings = { ...this.settings, ...newSettings };
-    this.universe = generateUniverse(this.settings);
+
+    // rebuild universe & migrate buffers
+    this._rebuildUniverseAndMigrate();
+
+    // preserve previous behavior: clear current when it was answered
     if (this.current && this.current.answered) this.current = null;
   }
 
-  _randomPick() {
-    return this.universe[Math.floor(Math.random()*this.universe.length)];
+  // load a snapshot containing {settings, log}
+  loadSnapshot(snapshot = {}) {
+    this.settings = { ...DEFAULTS, ...(snapshot.settings || {}) };
+    this.log = Array.isArray(snapshot.log) ? snapshot.log.slice() : [];
+    this.universe = generateUniverse(this.settings);
+    this._rebuildUniverseAndMigrate();
+    this.current = null;
   }
 
   nextTrial() {
     if (this.current && !this.current.answered) return this.current;
     const rel = this._randomPick();
     if (!rel) return (this.current = null);
-    const maxOff = rel[rel.length-1];
+
+    const maxOff = rel[rel.length - 1] || 0;
     const rootHigh = this.settings.midiHigh - maxOff;
-    const rootLow  = this.settings.midiLow;
+    const rootLow = this.settings.midiLow;
     if (rootHigh < rootLow) return (this.current = null);
-    const root = Math.floor(Math.random() * (rootHigh - rootLow + 1)) + rootLow;
+
+    const rng = (this.rng && typeof this.rng === 'function') ? this.rng : Math.random;
+    const root = Math.floor(rng() * (rootHigh - rootLow + 1)) + rootLow;
+
     const midis = rel.map(r => root + r)
                      .filter(m => m >= this.settings.midiLow && m <= this.settings.midiHigh);
+
     this.current = { rel, root, midis, answered: false };
     if (midis.length > 0) this.synth.playChord(midis, this.settings.duration);
     return this.current;
@@ -235,22 +433,85 @@ class Trainer {
     if (playable.length > 0) this.synth.playChord(playable, this.settings.duration);
   }
 
+  // submit guess: parse, record in log, update per-rel buffer & reachedCount incrementally
   submitGuess(text) {
     if (!this.current || this.current.answered) return null;
-    let nums = text.trim()
+
+    let nums = (text || "").trim()
       .replace(/,/g, " ")
       .split(/\s+/)
       .filter(s => s.length > 0)
-      .map(s => parseInt(s, 10));
+      .map(s => parseInt(s, 10))
+      .filter(n => !Number.isNaN(n));
 
     if (nums.length === 0) return { ok: null };
+
     if (nums[0] !== 0) nums.unshift(0);
-    nums = Array.from(new Set(nums)).sort((a,b) => a-b);
+    nums = Array.from(new Set(nums)).sort((a, b) => a - b);
 
     const truth = this.current.rel;
     const ok = keyRel(nums) === keyRel(truth);
     this.current.answered = true;
-    this.log.push({ rel: truth, guess: nums, ok });
+
+    const entry = { rel: truth, guess: nums, ok };
+    this.log.push(entry);
+
+    // incremental buffer update + reached-count adjustment
+    this._buildCacheIfNeeded();
+    const k = keyRel(truth);
+    const idx = this._cacheKeyToIndex.get(k);
+    const WIN = this.settings.win || 10;
+    const AIM = (typeof this.settings.aim === 'number') ? this.settings.aim : 0.8;
+    const rng = (this.rng && typeof this.rng === 'function') ? this.rng : Math.random;
+
+    if (idx !== undefined) {
+      const s = this._statsByIndex[idx] || { buffer: [], correct: 0 };
+      s.buffer = s.buffer || [];
+
+      // compute oldAcc BEFORE we mutate the buffer (we always divide by WIN)
+      const oldCorrect = s.correct || 0;
+      const oldAcc = oldCorrect / WIN;
+
+      // push new result (oldest-first buffer)
+      s.buffer.push(ok ? 1 : 0);
+      if (s.buffer.length > WIN) s.buffer.shift();
+
+      // recompute correct/newAcc
+      s.correct = s.buffer.reduce((a, b) => a + b, 0);
+      const newAcc = s.correct / WIN;
+
+      // put back
+      this._statsByIndex[idx] = s;
+
+      // update reachedCount O(1) when in exact mode
+      if (!this._reachedIsApprox) {
+        if (oldAcc < AIM && newAcc >= AIM) this._reachedCount++;
+        else if (oldAcc >= AIM && newAcc < AIM) this._reachedCount--;
+        // clamp
+        if (this._reachedCount < 0) this._reachedCount = 0;
+        if (this._cacheKeys && this._reachedCount > this._cacheKeys.length) this._reachedCount = this._cacheKeys.length;
+      } else {
+        // optional small nudge in approx mode (keeps estimate somewhat current)
+        if (oldAcc < AIM && newAcc >= AIM) this._reachedCount++;
+        else if (oldAcc >= AIM && newAcc < AIM) this._reachedCount = Math.max(0, this._reachedCount - 1);
+      }
+    }
+
+    // approximate-mode periodic refresh (optional)
+    this._submitCounter = (this._submitCounter || 0) + 1;
+    if (this._reachedIsApprox && (this._submitCounter % this._approxRefreshEvery === 0)) {
+      // recompute approximate estimate by sampling
+      const N2 = this._statsByIndex.length;
+      const K2 = Math.min(this._sampleK, N2);
+      let hits2 = 0;
+      for (let t = 0; t < K2; t++) {
+        const i2 = Math.floor(rng() * N2);
+        const s2 = this._statsByIndex[i2] || { correct: 0 };
+        if ((s2.correct || 0) / WIN >= AIM) hits2++;
+      }
+      this._reachedCount = Math.round((hits2 / K2) * N2);
+    }
+
     return { ok, truth, guess: nums };
   }
 
@@ -258,6 +519,9 @@ class Trainer {
     return { settings: this.settings, log: this.log };
   }
 }
+
+
+
 
 /* -------------------------
    UI Boot
@@ -304,14 +568,22 @@ class Trainer {
   /* ---------- input restriction ---------- */
   if (el.guessInput) {
     el.guessInput.addEventListener("input", () => {
-      el.guessInput.value = el.guessInput.value
-        .replace(/[^0-9., ]/g, "")  // allow digits, dot, comma, space
-        .replace(/\./g, " ")        // normalize dot → comma
-        .replace(/\s+/g, " ")       // collapse multiple spaces
-        .replace(/,\s*/g, " ");    // enforce comma-space style
+      // allow only digits, dot, comma, space
+      let v = el.guessInput.value.replace(/[^0-9., ]/g, "");
+  
+      // normalize separators into single spaces
+      v = v.replace(/\./g, " ");     // dot -> space
+      v = v.replace(/,\s*/g, " ");   // comma -> space (drop any following spaces)
+      v = v.replace(/\s+/g, " ");    // collapse multiple spaces
+  
+      // remove any leading separators (so input never starts with space/comma/dot)
+      v = v.replace(/^[\s,\.]+/, "");
+  
+      el.guessInput.value = v;
     });
   }
 el.guessInput.addEventListener("keydown", e => {
+  if (e.repeat) return;
   if (!e.key || e.key.length !== 1) return;           // ignore non-printable keys
   const k = e.key.toLowerCase();
   if (k === 'c' && el.replaySetBtn && !el.replaySetBtn.disabled) {
@@ -363,8 +635,8 @@ el.guessInput.addEventListener("keydown", e => {
 
     if (el.mixRatio) {
       el.mixRatio.innerHTML = "";
-      for (let v = 0.05; v <= 1.00001; v += 0.05) {
-        const val = Math.min(1, v).toFixed(2);
+      for (let v = 0.0; v <= 1.00001; v += 0.1) {
+        const val = Math.min(1, v).toFixed(1);
         const opt = document.createElement("option");
         opt.value = val;
         opt.textContent = val;
@@ -402,8 +674,24 @@ function updateButtons() {
   const cur = trainer.current;
 
   // Helper label fragments (underline the important key)
-  const replayChordLabel = `Replay <u>C</u>hord`;
-  const replayGuessLabel = `Replay <u>G</u>uess`;
+  // detect keyboard-capable devices and only insert <u> on those
+  const supportsKeyboard = window.matchMedia('(any-hover: hover) and (any-pointer: fine)').matches;
+  const replayChordLabel = supportsKeyboard
+    ? `Replay <u class="accesskey-u">C</u>hord`
+    : 'Replay Chord';
+  const replayGuessLabel = supportsKeyboard
+    ? `Replay <u class="accesskey-u">G</u>uess`
+    : 'Replay Guess';
+
+
+  // keep original simple label format; only add underlined N on keyboard devices.
+  const desiredNewInner = supportsKeyboard ? '▶ <u class="accesskey-u">N</u>ew Chord' : '▶ New Chord';
+
+  // only touch the DOM if the label actually differs (avoid churn)
+  if (el.newSetBtn && el.newSetBtn.innerHTML.trim() !== desiredNewInner) {
+    el.newSetBtn.innerHTML = desiredNewInner;
+  }
+
   const submitLabel = `
     <span style="font-size:1.3em; line-height:1;">⏎</span>
     <span>Submit guess</span>`;
@@ -425,7 +713,7 @@ function updateButtons() {
     if (el.replaySetBtn) {
       el.replaySetBtn.disabled = true;
       // keep consistent styling and label even when disabled
-      el.replaySetBtn.innerHTML = `<span style="font-size:1.0em; margin-right:0.4rem;">⏵</span><span>${replayChordLabel}</span>`;
+      el.replaySetBtn.innerHTML = `<span style="font-size:1.8em; line-height:1; display:inline-block; transform: translateY(-0.1em);">⟳</span><span>${replayChordLabel}</span>`;
       el.replaySetBtn.style.display = "inline-flex";
       el.replaySetBtn.style.alignItems = "center";
       el.replaySetBtn.style.justifyContent = "center";
@@ -451,7 +739,7 @@ function updateButtons() {
 
     if (el.replaySetBtn) {
       el.replaySetBtn.disabled = false;
-      el.replaySetBtn.innerHTML = `<span style="font-size:1.0em; margin-right:0.4rem;">⏵</span><span>${replayChordLabel}</span>`;
+      el.replaySetBtn.innerHTML = `<span style="font-size:1.8em; line-height:1; display:inline-block; transform: translateY(-0.1em);">⟳</span><span>${replayChordLabel}</span>`;
       el.replaySetBtn.style.display = "inline-flex";
       el.replaySetBtn.style.alignItems = "center";
       el.replaySetBtn.style.justifyContent = "center";
@@ -464,7 +752,7 @@ function updateButtons() {
     if (el.submitBtn) {
       el.submitBtn.innerHTML = `
         <span style="font-size:1.3em; line-height:1;">⏎</span>
-        <span>Submit guess</span>`;
+        <span>Submit Guess</span>`;
       el.submitBtn.style.display = "inline-flex";
       el.submitBtn.style.alignItems = "center";
       el.submitBtn.style.justifyContent = "center";
@@ -475,7 +763,7 @@ function updateButtons() {
 
     if (el.replaySetBtn) {
       el.replaySetBtn.disabled = false;
-      el.replaySetBtn.innerHTML = `<span style="font-size:1.0em; margin-right:0.4rem;">⏵</span><span>${replayChordLabel}</span>`;
+      el.replaySetBtn.innerHTML = `<span style="font-size:1.8em; line-height:1; display:inline-block; transform: translateY(-0.1em);">⟳</span><span>${replayChordLabel}</span>`;
       el.replaySetBtn.style.display = "inline-flex";
       el.replaySetBtn.style.alignItems = "center";
       el.replaySetBtn.style.justifyContent = "center";
@@ -503,22 +791,16 @@ if (el.submitBtn) {
 
 // global key handler for C / G; don't trigger when typing in the guess input
 window.addEventListener('keydown', e => {
-  // ignore while typing in guess input (allow normal typing)
-  if (document.activeElement === el.guessInput) return;
-
+  if (e.repeat) return;
+  if (document.activeElement === el.guessInput) return; // don't interfere while typing
   const k = (e.key || '').toLowerCase();
+
   if (k === 'c') {
-    if (el.replaySetBtn && !el.replaySetBtn.disabled) {
-      e.preventDefault();
-      handleReplay();
-    }
+    if (el.replaySetBtn && !el.replaySetBtn.disabled) { e.preventDefault(); handleReplay(); }
   } else if (k === 'g') {
-    if (el.submitBtn && !el.submitBtn.disabled) {
-      e.preventDefault();
-      // submitBtn is used for replay-guess when in answered state;
-      // handleSubmit already covers both submit & replay-guess
-      handleSubmit();
-    }
+    if (el.submitBtn && !el.submitBtn.disabled) { e.preventDefault(); handleSubmit(); }
+  } else if (k === 'n') {
+    if (el.newSetBtn && !el.newSetBtn.disabled) { e.preventDefault(); handleNewSet(); }
   }
 }, false);
 
@@ -528,6 +810,7 @@ window.addEventListener('keydown', e => {
   /* ---------- feedback ---------- */
   function updateFeedback(ok, truth, guess) {
     const WIN = trainer.settings.win;
+    const AIM = trainer.settings.aim;
   
     // rolling accuracy for this rel
     const hist = trainer.log.filter(l => keyRel(l.rel) === keyRel(truth)).slice(-WIN);
@@ -547,6 +830,17 @@ window.addEventListener('keydown', e => {
     // overall accuracy
     const total = trainer.log.length;
     const overall = total ? Math.round(trainer.log.filter(l => l.ok).length / total * 100) : 0;
+  
+    // count how many rels reached AIM (acc >= AIM) out of universe size
+    let reached = 0;
+    for (const rel of trainer.universe) {
+      const k = keyRel(rel);
+      const relHist = trainer.log.filter(l => keyRel(l.rel) === k).slice(-WIN);
+      const c = relHist.filter(h => h.ok).length;
+      const acc = c / WIN; // IMPORTANT: divide by WIN always (your semantics)
+      if (acc >= AIM) reached++;
+    }
+    const universeSize = trainer.universe.length;
   
     // formatted strings (monospace padding with spaces, not zeros)
     const rolling       = `${correct.toString().padStart(2," ")}/${WIN}`;
@@ -578,16 +872,19 @@ window.addEventListener('keydown', e => {
     <div style="text-align:left; margin-top:0.5rem; margin-left:3.7rem; font-family:monospace;">
       Rolling accuracy: <strong>${String(correct).padStart(2, '\u00A0')}/${WIN}</strong><br>
       Minimum accuracy: <strong>${String(Math.round(minAcc * WIN)).padStart(2, '\u00A0')}/${WIN}</strong><br>
-      Overall accuracy: <strong>${String(overall).padStart(4, '\u00A0')}%</strong>
+      Overall accuracy: <strong>${String(overall).padStart(4, '\u00A0')}%</strong><br>
+      Sets at min. 80%: <strong>${String(reached).padStart(2, '\u00A0')}/${universeSize}</strong>
     </div>`;
   
     if (el.feedback) el.feedback.innerHTML = msg;
   }
-  
 
   /* ---------- user handling ---------- */
   function switchUser(name, { skipSave = false } = {}) {
     // Save old user
+    if (synth && typeof synth.stopAll === 'function') {
+      synth.stopAll();
+    }
     if (!skipSave && currentUser !== "Guest") {
       Storage.save(currentUser, trainer.snapshotForSave());
     }
@@ -705,17 +1002,45 @@ window.addEventListener('keydown', e => {
   if (el.replaySetBtn) el.replaySetBtn.onclick = handleReplay;
   if (el.submitBtn) el.submitBtn.onclick = handleSubmit;
 
-  // === NEW: Enter-to-submit support ===
-  if (el.guessInput) {
-    el.guessInput.addEventListener("keydown", e => {
-      if (e.key === "Enter") {
-        e.preventDefault(); // prevent form submission
-        if (!el.submitBtn.disabled) {
+// === Enter behavior: submit when input has content, replay chord when empty ===
+if (el.guessInput) {
+  el.guessInput.addEventListener("keydown", e => {
+    // ignore auto-repeat to avoid machine-gunning when holding Enter
+    if (e.repeat) return;
+
+    if (e.repeat) return; // avoid auto-repeat
+
+    const val = (el.guessInput.value || "").trim();
+    
+    // handle Space: when input empty -> act like 'c' (replay), otherwise allow space insertion
+    if (e.key === " " || e.key === "Spacebar" || e.code === "Space") {
+      if (e.ctrlKey || e.altKey || e.metaKey) return; // don't intercept modifier combos
+      if (val.length === 0) {
+        e.preventDefault(); // prevent a leading space from being inserted (no flicker)
+        if (el.replaySetBtn && !el.replaySetBtn.disabled) handleReplay();
+      }
+      return; // done handling Space
+    }
+
+    if (e.key === "Enter") {
+      e.preventDefault(); // prevent form submission
+
+      const val = (el.guessInput.value || "").trim();
+      if (val.length === 0) {
+        // act like 'c' — replay the chord if available
+        if (el.replaySetBtn && !el.replaySetBtn.disabled) {
+          handleReplay();
+        }
+      } else {
+        // submit as before
+        if (el.submitBtn && !el.submitBtn.disabled) {
           handleSubmit();
         }
       }
-    });
-  }
+    }
+  });
+}
+
 
   // === Enter-safe focus helper ===
 const keysDown = new Set();
