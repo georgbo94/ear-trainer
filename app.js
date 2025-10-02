@@ -678,22 +678,22 @@ class Trainer {
     el.deleteUserBtn.disabled = true;
   }
 updateButtons();
-  try { if (el.newSetBtn) el.newSetBtn.focus(); } catch {}
-   if (el.guessInput) {
-  // start locked to prevent Safari auto-scroll
-  el.guessInput.setAttribute("readonly", true);
 
-  // enable on tap
-  el.guessInput.addEventListener("touchstart", e => {
-    e.preventDefault(); // stop Safari's default "scroll input into view"
-    el.guessInput.removeAttribute("readonly");
-    el.guessInput.focus({ preventScroll: true });
-  });
+if (el.guessInput) {
+  // Start normal — no readonly here
+  // Safari will still try to scroll, so we override focus instead
 
-  // reset on blur so it behaves same next time
-  el.guessInput.addEventListener("blur", () => {
-    el.guessInput.setAttribute("readonly", true);
+  el.guessInput.addEventListener("focus", e => {
+    // Immediately prevent Safari scroll-on-focus
+    requestAnimationFrame(() => {
+      try {
+        el.guessInput.blur(); // cancel Safari's automatic scroll
+        el.guessInput.focus({ preventScroll: true }); // refocus without movement
+      } catch (err) {}
+    });
   });
 }
+   
 })();
+
 
