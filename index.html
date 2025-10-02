@@ -172,10 +172,7 @@ button.pressed {
   background: #ccc;
 }
 
-.game-focus {
-  outline: 2px solid yellow;
-  outline-offset: 2px;
-}
+ 
 
 .btn-green {
   background: rgb(104, 180, 104);
@@ -196,13 +193,20 @@ button.pressed {
 }
 
 /* Unified focus style for interactive elements */
-button:focus-visible,
-select:focus-visible,
-input:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid rgb(70, 74, 70); /* green outline */
-  outline-offset: 2px;
-  border-radius: 0px; /* optional: round corners */
+/* unified rule: applies for keyboard focus and programmatic focus alike */
+@media (any-hover: hover) and (any-pointer: fine) {
+  button:focus,
+  button:focus-visible,
+  input:focus,
+  input:focus-visible,
+  select:focus,
+  select:focus-visible,
+  textarea:focus,
+  textarea:focus-visible {
+    outline: 2px solid rgb(70, 74, 70) !important;
+    outline-offset: 2px !important;
+    border-radius: 0 !important;
+  }
 }
 
 
@@ -259,7 +263,7 @@ textarea:focus-visible {
 
     <!-- Controls -->
     <section id="controls">
-      <button id="newSetBtn">▶ New chord</button>
+      <button id="newSetBtn">▶ New Chord</button>
       <button id="replaySetBtn" 
       style="display:inline-flex; align-items:center; justify-content:center; gap:0.4rem;">
 <span style="font-size:1.8em; line-height:1; display:inline-block; transform: translateY(-0.1em);">⟳</span>
