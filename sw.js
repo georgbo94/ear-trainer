@@ -1,4 +1,5 @@
-const CACHE_NAME = 'eartrainer-vas1';
+// sw.js — for https://georgbo94.github.io/ear-trainer/
+const CACHE_NAME = 'eartrainer-vwewe10';
 
 const FILES_TO_CACHE = [
   '/ear-trainer/',
@@ -9,24 +10,24 @@ const FILES_TO_CACHE = [
   '/ear-trainer/icons/icon-512.png'
 ];
 
-// Install: cache all the important files
+// --- INSTALL: precache ---
 self.addEventListener('install', event => {
-  event.waitUntil(
-    (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      for (const url of FILES_TO_CACHE) {
-        try {
-          await cache.add(url);
-        } catch (err) {
-          console.warn('SW: Failed to cache', url, err);
-        }
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    for (const url of FILES_TO_CACHE) {
+      try {
+        // cache: 'reload' avoids stale HTTP cache during install
+        await cache.add(new Request(url, { cache: 'reload' }));
+        // console.log('SW cached:', url);
+      } catch (err) {
+        console.warn('SW: failed to cache', url, err);
       }
-    })()
-  );
+    }
+  })());
   self.skipWaiting();
 });
 
-// Activate: clean up old caches
+// --- ACTIVATE: cleanup old versions ---
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -36,29 +37,28 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Fetch: serve from network, fallback to cache
+// --- FETCH: network first for navigations; fallback to cached app shell ---
 self.addEventListener('fetch', event => {
   const req = event.request;
+  if (req.method !== 'GET') return;
 
-  // Handle page navigations
-  if (req.mode === 'navigate') {
-    event.respondWith(
-      (async () => {
-        try {
-          return await fetch(req);
-        } catch (err) {
-          // offline fallback to cached index.html
-          return caches.match('/ear-trainer/index.html');
-        }
-      })()
-    );
-    return;
-  }
+  const isNavigation = req.mode === 'navigate' || req.destination === 'document';
 
-  // Handle other GET requests
-  if (req.method === 'GET') {
-    event.respondWith(
-      caches.match(req).then(cached => cached || fetch(req))
-    );
-  }
-});
+  if (isNavigation) {
+    event.respondWith((async () => {
+      try {
+        // Online path
+        return await fetch(req);
+      } catch (e) {
+        // OFFLINE FALLBACKS — try multiple keys that may exist in cache
+        let res =
+          await caches.match('/ear-trainer/') ||
+          await caches.match('/ear-trainer/index.html') ||
+          await caches.match(new URL('./', self.registration.scope).href) ||
+          await caches.match(new URL('./index.html', self.registration.scope).href);
+
+        if (res) return res;
+
+        // Last resort: return a tiny offline page so Firefox/iOS don't show their own
+        return new Response(
+          '<!doctype html><meta charset="utf-8"><t
