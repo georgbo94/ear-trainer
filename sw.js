@@ -1,48 +1,65 @@
-const CACHE_NAME = "eartrainer-v439"; // bump this when you change cached files
+const CACHE_NAME = 'eartrainer-v1000000';
+
+// List only files that actually exist in your deployed site
 const FILES_TO_CACHE = [
-  "/ear-trainer/",
-  "/ear-trainer/index.html",
-  "/ear-trainer/app.js",
-  "/ear-trainer/icons/icon-192.png",
-  "/ear-trainer/icons/icon-512.png"
+  './',
+  './index.html',
+  './manifest.json',
+  './app.js',
+  './style.css',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 
-// Install: precache app shell
-self.addEventListener("install", (event) => {
+// Install: cache all the important files
+self.addEventListener('install', event => {
+  event.waitUntil(
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      for (const url of FILES_TO_CACHE) {
+        try {
+          await cache.add(url);
+        } catch (err) {
+          console.warn('SW: Failed to cache', url, err);
+        }
+      }
+    })()
+  );
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(FILES_TO_CACHE))
-  );
 });
 
-// Activate: take control & clean old caches
-self.addEventListener("activate", (event) => {
+// Activate: clean up old caches
+self.addEventListener('activate', event => {
   event.waitUntil(
-    Promise.all([
-      clients.claim(),
-      caches.keys().then(keys =>
-        Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-      )
-    ])
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    )
   );
+  self.clients.claim();
 });
 
-// Fetch: ALWAYS return cached index.html for navigations (covers Firefox/iOS)
-self.addEventListener("fetch", (event) => {
+// Fetch: network-first for non-navigation, fallback to cache;
+// For navigations (HTML pages), fallback to cached index.html
+self.addEventListener('fetch', event => {
   const req = event.request;
-  const isNavigation =
-    req.mode === "navigate" ||
-    (req.method === "GET" && req.headers.get("accept")?.includes("text/html"));
 
-  if (isNavigation) {
+  // Handle navigation requests (page loads, links)
+  if (req.mode === 'navigate') {
     event.respondWith(
-      caches.match("/ear-trainer/index.html").then(resp => resp || fetch(req))
+      fetch(req).catch(() => caches.match('./index.html'))
     );
     return;
   }
 
-  // Non-HTML: cache-first
-  event.respondWith(
-    caches.match(req).then(resp => resp || fetch(req))
-  );
+  // For other GET requests, try cache first, then network
+  if (req.method === 'GET') {
+    event.respondWith(
+      caches.match(req).then(cached =>
+        cached || fetch(req).then(response => {
+          // Optionally: cache new requests dynamically
+          return response;
+        })
+      )
+    );
+  }
 });
