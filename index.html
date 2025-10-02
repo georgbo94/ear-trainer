@@ -22,6 +22,9 @@ html, body {
   margin: 0;
   padding: 0;
   overflow: hidden;    /* 🚫 disable body scroll */
+  position: fixed;        /* 🚫 pin to viewport */
+  top: 0; left: 0; right: 0; bottom: 0;
+  overscroll-behavior: none; /* 🚫 disable iOS/Chrome “rubber band” */
 }
 
 body {
@@ -283,6 +286,7 @@ textarea:focus-visible {
   </script>
 </body>
 </html>
+
 
 
 
