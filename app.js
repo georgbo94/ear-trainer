@@ -82,43 +82,45 @@ const Storage = {
 };
 
 /* -------------------------
-   Synth
+   Synth (final version)
 ------------------------- */
 class Synth {
   constructor() {
-    const Ctor = window.AudioContext || window.webkitAudioContext;
-    this.ctx = new Ctor();
-    this._unlocked = false;
-    this._currentVoice = null; // track the one active voice
-
-    const unlock = () => {
-      if (this._unlocked) return;
-      this.ctx.resume().then(() => { this._unlocked = true; }).catch(() => {});
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
-    };
-    window.addEventListener("pointerdown", unlock);
-    window.addEventListener("keydown", unlock);
-  }
-
-  stopCurrent() {
-    if (!this._currentVoice) return;
-    const { nodes, timer } = this._currentVoice;
-    clearTimeout(timer);
-    for (const node of nodes) {
-      try {
-        if (node.stop) node.stop();
-        if (node.disconnect) node.disconnect();
-      } catch {}
+    // Reuse one global AudioContext across all Synths
+    if (!Synth.sharedCtx) {
+      const Ctor = window.AudioContext || window.webkitAudioContext;
+      Synth.sharedCtx = new Ctor();
     }
-    this._currentVoice = null;
+    this.ctx = Synth.sharedCtx;
+
+    // Track currently playing nodes (single voice)
+    this.currentNodes = [];
+
+    // Only install unlock once
+    if (!Synth._unlockInstalled) {
+      Synth._unlocked = false;
+      const unlock = () => {
+        if (Synth._unlocked) return;
+        this.ctx.resume()
+          .then(() => { Synth._unlocked = true; })
+          .catch(() => {});
+        window.removeEventListener("pointerdown", unlock);
+        window.removeEventListener("keydown", unlock);
+      };
+      window.addEventListener("pointerdown", unlock);
+      window.addEventListener("keydown", unlock);
+      Synth._unlockInstalled = true;
+    }
   }
 
   playChord(midis, dur = DEFAULTS.duration) {
     if (!midis.length) return;
 
-    // interrupt anything playing
-    this.stopCurrent();
+    // Kill any currently playing nodes
+    this.currentNodes.forEach(node => {
+      try { node.stop(); } catch {}
+    });
+    this.currentNodes = [];
 
     const now = this.ctx.currentTime;
     const masterGain = this.ctx.createGain();
@@ -132,9 +134,6 @@ class Synth {
     masterGain.gain.setValueAtTime(S, now + dur - R);
     masterGain.gain.linearRampToValueAtTime(0, now + dur);
 
-    const nodes = [masterGain];
-
-    // build harmonics
     midis.forEach(midi => {
       const f0 = midiToHz(midi);
       for (let h = 1; h <= 11; h++) {
@@ -146,24 +145,14 @@ class Synth {
         osc.connect(g).connect(masterGain);
         osc.start(now);
         osc.stop(now + dur);
-        nodes.push(osc, g);
+
+        // track nodes so we can kill them on next chord
+        this.currentNodes.push(osc);
       }
     });
-
-    // cleanup after full duration
-    const timer = setTimeout(() => {
-      for (const node of nodes) {
-        try {
-          if (node.stop) node.stop();
-          if (node.disconnect) node.disconnect();
-        } catch {}
-      }
-      this._currentVoice = null;
-    }, dur * 1000 + 100);
-
-    this._currentVoice = { nodes, timer };
   }
 }
+
 
 
 /* -------------------------
@@ -681,6 +670,5 @@ updateButtons();
 
    
 })();
-
 
 
