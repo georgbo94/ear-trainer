@@ -1,10 +1,11 @@
 {
-    "name": "Pitch Set Trainer",
-    "short_name": "PitchSetTrainer",
-    "start_url": "index.html",
-    "display": "standalone",
-    "background_color": "#ffffff",
-    "theme_color": "#000000",
+  "name": "Pitch Set Trainer",
+  "short_name": "PitchSetTrainer",
+  "start_url": "/ear-trainer/index.html",
+  "scope": "/ear-trainer/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
   "icons": [
     {
       "src": "icons/icon-192.png",
@@ -17,7 +18,4 @@
       "type": "image/png"
     }
   ]
-  }
-
-  
-
+}
