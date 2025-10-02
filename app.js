@@ -301,7 +301,11 @@ class Trainer {
   /* ---------- input restriction ---------- */
   if (el.guessInput) {
     el.guessInput.addEventListener("input", () => {
-      el.guessInput.value = el.guessInput.value.replace(/[^0-9, ]/g, "");
+      el.guessInput.value = el.guessInput.value
+        .replace(/[^0-9., ]/g, "")  // allow digits, dot, comma, space
+        .replace(/\./g, " ")        // normalize dot → comma
+        .replace(/\s+/g, " ")       // collapse multiple spaces
+        .replace(/,\s*/g, " ");    // enforce comma-space style
     });
   }
 
