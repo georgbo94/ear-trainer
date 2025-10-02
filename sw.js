@@ -1,12 +1,13 @@
-const CACHE_NAME = "eartrainer-final-v2";
+const CACHE_NAME = "eartrainer-v5";
 const FILES_TO_CACHE = [
+  "/ear-trainer/",
   "/ear-trainer/index.html",
   "/ear-trainer/app.js",
   "/ear-trainer/icons/icon-192.png",
   "/ear-trainer/icons/icon-512.png"
 ];
 
-// Install: cache files
+// Install: cache the app shell
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
@@ -14,7 +15,7 @@ self.addEventListener("install", (event) => {
   );
 });
 
-// Activate: clean old caches
+// Activate: take control and clean old caches
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     Promise.all([
@@ -26,19 +27,18 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch: serve cached index.html for navigations, cache-first for others
+// Fetch: serve index.html for navigations, cache-first for others
 self.addEventListener("fetch", (event) => {
-  const req = event.request;
-
-  if (req.mode === "navigate" ||
-      (req.method === "GET" && req.headers.get("accept")?.includes("text/html"))) {
+  if (event.request.mode === "navigate") {
     event.respondWith(
-      caches.match("/ear-trainer/index.html").then(resp => resp || fetch(req))
+      caches.match("/ear-trainer/index.html").then(resp => {
+        return resp || fetch(event.request);
+      })
     );
     return;
   }
 
   event.respondWith(
-    caches.match(req).then(resp => resp || fetch(req))
+    caches.match(event.request).then(resp => resp || fetch(event.request))
   );
 });
