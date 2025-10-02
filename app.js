@@ -96,21 +96,24 @@ class Synth {
     // Track currently playing nodes (single voice)
     this.currentNodes = [];
 
-    // Only install unlock once
-    if (!Synth._unlockInstalled) {
-      Synth._unlocked = false;
-      const unlock = () => {
-        if (Synth._unlocked) return;
-        this.ctx.resume()
-          .then(() => { Synth._unlocked = true; })
-          .catch(() => {});
-        window.removeEventListener("pointerdown", unlock);
-        window.removeEventListener("keydown", unlock);
-      };
-      window.addEventListener("pointerdown", unlock);
-      window.addEventListener("keydown", unlock);
-      Synth._unlockInstalled = true;
+// Replace your "Only install unlock once" block with this:
+if (!Synth._unlockInstalled) {
+  const tryResume = () => {
+    // iOS may use "suspended" or "interrupted"
+    if (this.ctx && this.ctx.state !== "running") {
+      this.ctx.resume().catch(() => {});
     }
+  };
+  // Keep these listeners forever; they're cheap and idempotent
+  window.addEventListener("pointerdown", tryResume, { passive: true });
+  window.addEventListener("keydown", tryResume);
+  document.addEventListener("visibilitychange", tryResume);
+  // Optional: observe state changes (for debugging)
+  if (this.ctx && this.ctx.addEventListener) {
+    this.ctx.addEventListener("statechange", tryResume);
+  }
+  Synth._unlockInstalled = true;
+}
   }
 
   playChord(midis, dur = DEFAULTS.duration) {
