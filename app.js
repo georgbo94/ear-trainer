@@ -305,6 +305,17 @@ class Trainer {
     });
   }
 
+  if (el.guessInput) {
+    el.guessInput.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        e.preventDefault(); // stop form submission / newline
+        if (!el.submitBtn.disabled) {
+          el.submitBtn.click(); // simulate a click on Submit
+        }
+      }
+    });
+  }
+
   /* ---------- constraint solver ---------- */
   function computeRanges(s) {
     const ranges = {};
