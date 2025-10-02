@@ -679,4 +679,21 @@ class Trainer {
   }
 updateButtons();
   try { if (el.newSetBtn) el.newSetBtn.focus(); } catch {}
+   if (el.guessInput) {
+  // start locked to prevent Safari auto-scroll
+  el.guessInput.setAttribute("readonly", true);
+
+  // enable on tap
+  el.guessInput.addEventListener("touchstart", e => {
+    e.preventDefault(); // stop Safari's default "scroll input into view"
+    el.guessInput.removeAttribute("readonly");
+    el.guessInput.focus({ preventScroll: true });
+  });
+
+  // reset on blur so it behaves same next time
+  el.guessInput.addEventListener("blur", () => {
+    el.guessInput.setAttribute("readonly", true);
+  });
+}
 })();
+
