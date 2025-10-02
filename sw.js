@@ -1,45 +1,33 @@
-const CACHE_NAME = "eartrainer-v3";
+const CACHE_NAME = "eartrainer-debug";
 const FILES_TO_CACHE = [
-  "/ear-trainer/",            // the app entry point
-  "/ear-trainer/index.html",  // your main page
-  "/ear-trainer/app.js"       // your script
-  // add more files if you want, e.g. "/ear-trainer/styles.css"
+  "/ear-trainer/",
+  "/ear-trainer/index.html",
+  "/ear-trainer/app.js"
 ];
 
-// Install: cache files
 self.addEventListener("install", (event) => {
-  console.log("SW: install event");
+  console.log("SW: install event fired");
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log("SW: caching files");
+        console.log("SW: opened cache");
         return cache.addAll(FILES_TO_CACHE);
       })
-      .catch(err => console.error("SW: cache.addAll failed:", err))
+      .then(() => console.log("SW: all files cached OK"))
+      .catch(err => {
+        console.error("SW: cache.addAll failed:", err);
+        throw err;
+      })
   );
 });
 
-// Activate: clean up old caches
-self.addEventListener("activate", (event) => {
+self.addEventListener("activate", () => {
   console.log("SW: activated");
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-      )
-    )
-  );
 });
 
-// Fetch: serve from cache, fallback to network
 self.addEventListener("fetch", (event) => {
+  console.log("SW: fetching", event.request.url);
   event.respondWith(
-    caches.match(event.request).then(resp => {
-      if (resp) {
-        console.log("SW: serving from cache", event.request.url);
-        return resp;
-      }
-      return fetch(event.request);
-    })
+    caches.match(event.request).then(resp => resp || fetch(event.request))
   );
 });
