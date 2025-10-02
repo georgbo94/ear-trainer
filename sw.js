@@ -17,3 +17,8 @@ self.addEventListener("fetch", (e) => {
     })
   );
 });
+
+self.addEventListener("install", () => console.log("SW: installed"));
+self.addEventListener("activate", () => console.log("SW: activated"));
+self.addEventListener("fetch", e => console.log("SW: fetching", e.request.url));
+
