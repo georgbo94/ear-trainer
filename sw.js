@@ -1,7 +1,7 @@
-// sw.js — for https://georgbo94.github.io/ear-trainer/
-const CACHE_NAME = 'eartrainer-vwewe10';
+// sw.js for https://georgbo94.github.io/ear-trainer/
+var CACHE_NAME = 'eartrainer-vsddddddddddd11';
 
-const FILES_TO_CACHE = [
+var FILES_TO_CACHE = [
   '/ear-trainer/',
   '/ear-trainer/index.html',
   '/ear-trainer/manifest.json',
@@ -10,55 +10,57 @@ const FILES_TO_CACHE = [
   '/ear-trainer/icons/icon-512.png'
 ];
 
-// --- INSTALL: precache ---
-self.addEventListener('install', event => {
-  event.waitUntil((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    for (const url of FILES_TO_CACHE) {
-      try {
-        // cache: 'reload' avoids stale HTTP cache during install
-        await cache.add(new Request(url, { cache: 'reload' }));
-        // console.log('SW cached:', url);
-      } catch (err) {
-        console.warn('SW: failed to cache', url, err);
-      }
-    }
-  })());
+// INSTALL: precache
+self.addEventListener('install', function (event) {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(function (cache) {
+      return Promise.all(FILES_TO_CACHE.map(function (url) {
+        return cache.add(url).catch(function (err) {
+          // Keep going even if one file fails
+          console.warn('SW: failed to cache', url, err);
+        });
+      }));
+    })
+  );
   self.skipWaiting();
 });
 
-// --- ACTIVATE: cleanup old versions ---
-self.addEventListener('activate', event => {
+// ACTIVATE: remove old caches
+self.addEventListener('activate', function (event) {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+    caches.keys().then(function (keys) {
+      return Promise.all(keys.filter(function (k) { return k !== CACHE_NAME; })
+        .map(function (k) { return caches.delete(k); }));
+    })
   );
   self.clients.claim();
 });
 
-// --- FETCH: network first for navigations; fallback to cached app shell ---
-self.addEventListener('fetch', event => {
-  const req = event.request;
+// FETCH: network for navigations, fallback to cached app shell when offline.
+// Cache-first for other GETs.
+self.addEventListener('fetch', function (event) {
+  var req = event.request;
   if (req.method !== 'GET') return;
 
-  const isNavigation = req.mode === 'navigate' || req.destination === 'document';
+  var isNav = (req.mode === 'navigate') || (req.destination === 'document');
 
-  if (isNavigation) {
-    event.respondWith((async () => {
-      try {
-        // Online path
-        return await fetch(req);
-      } catch (e) {
-        // OFFLINE FALLBACKS — try multiple keys that may exist in cache
-        let res =
-          await caches.match('/ear-trainer/') ||
-          await caches.match('/ear-trainer/index.html') ||
-          await caches.match(new URL('./', self.registration.scope).href) ||
-          await caches.match(new URL('./index.html', self.registration.scope).href);
+  if (isNav) {
+    event.respondWith(
+      fetch(req).catch(function () {
+        return caches.match('/ear-trainer/') ||
+               caches.match('/ear-trainer/index.html') ||
+               new Response(
+                 '<!doctype html><meta charset="utf-8"><title>Offline</title><h1>Offline</h1>',
+                 { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+               );
+      })
+    );
+    return;
+  }
 
-        if (res) return res;
-
-        // Last resort: return a tiny offline page so Firefox/iOS don't show their own
-        return new Response(
-          '<!doctype html><meta charset="utf-8"><t
+  event.respondWith(
+    caches.match(req).then(function (cached) {
+      return cached || fetch(req);
+    })
+  );
+});
