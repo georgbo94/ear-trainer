@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 
+
+
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,15 +17,49 @@
 
   <!-- 🎨 Mobile-friendly rectangular styling -->
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 18px;
-      line-height: 1.4;
-      margin: 0;
-      padding: 0.5rem 1rem;
-      background: #fafafa;
-      color: #222;
-    }
+body {
+  font-family: monospace;
+  font-size: 18px;
+  line-height: 1.4;
+  margin: 0;
+  padding: 0.5rem 1rem;
+  background: #fafafa;
+  color: #222;
+
+  /* added for phone-on-left look */
+  display: flex;
+  justify-content: flex-start; /* align card to left */
+}
+
+main {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+
+}
+
+/* scaling when screen smaller than design */
+@media (max-width: 336px) {
+  main {
+    transform: scale(calc(100vw / 336));
+    transform-origin: top left;
+  }
+}
+
+#feedbackBox {
+  margin-left: 0rem;
+  flex-shrink: 0;         
+  padding: 0.2rem;
+  border-top: none;
+  background:#fafafa;
+  font-size: 1rem;
+  line-height: 1.3;
+  width: 20rem;       /* fixed width */
+  min-height: 6rem;   /* reserve space */
+  overflow: visible;  /* show all content */
+}
+
 
     h1 {
       font-size: 1.6rem;
@@ -36,17 +73,18 @@
 
     /* Base reset for inputs, selects, buttons */
     button,
-    select,
-    input {
-      -webkit-appearance: none;
-      appearance: none;
-      border-radius: 0;
-      font-size: 1rem;
-      border: 1px solid #ccc;
-      color: #000;
-      padding: 0.4rem 0.6rem;
-      box-sizing: border-box; /* ✅ ensure borders included */
-    }
+select,
+input {
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 0;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  color: #000;
+  padding: 0.4rem 0.6rem;
+  box-sizing: border-box;
+  font-family: inherit;   /* 🔥 make them use body font (monospace) */
+}
 
     /* General button look */
     button {
@@ -54,9 +92,10 @@
       min-height: 44px;
     }
 
-    button:active {
-      background: #ccc;
-    }
+
+
+
+
 
     button:disabled {
       background: #f5f5f5;
@@ -76,7 +115,7 @@
 
 #controls button,
 #controls input {
-  width: 9rem;
+  width: 10rem;
   height: 2.5rem;
   font-size: 1rem;
   font-family: inherit;   /* ✅ unify font */
@@ -103,6 +142,50 @@
     #deleteUserBtn {
       width: 5rem;
     }
+
+.section-line {
+  height: 2px;
+  background: linear-gradient(to right, #ccc, #666, #ccc); /* nice fade effect */
+  margin: 0.5rem 0 0.5rem 0;
+  width: 21rem;   /* only as wide as content */
+  min-width: 8rem;      /* ensures it’s not too tiny */
+}
+
+
+button:active,
+button.pressed {
+  background: #ccc;
+}
+
+.btn-green {
+  background: rgb(104, 180, 104);
+  color: white;
+}
+.btn-red {
+  background: rgb(160, 68, 50);
+  color: white;
+}
+
+.btn-green:active,
+.btn-green.pressed {
+  background: rgb(63, 111, 63);
+}
+.btn-red:active,
+.btn-red.pressed {
+  background: rgb(122, 52, 38);
+}
+
+/* Unified focus style for interactive elements */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgb(70, 74, 70); /* green outline */
+  outline-offset: 2px;
+  border-radius: 0px; /* optional: round corners */
+}
+
+
   </style>
 </head>
 
@@ -112,7 +195,6 @@
 
     <!-- User -->
     <section id="userSection">
-      <h3>🙉 User 🙊</h3>
       <table>
         <tr>
           <td>User:</td>
@@ -127,7 +209,7 @@
 
     <!-- Settings -->
     <section id="settings">
-      <h3>⚙️ Settings 🐢</h3>
+      <div class="section-line"></div>
       <table>
         <tr>
           <td># Notes:</td>
@@ -153,17 +235,25 @@
         </tr>
       </table>
     </section>
+    <div class="section-line"></div>
 
     <!-- Controls -->
     <section id="controls">
       <button id="newSetBtn">▶ New chord</button>
-      <button id="replaySetBtn">🔁 Replay chord</button>
+      <button id="replaySetBtn" 
+      style="display:inline-flex; align-items:center; justify-content:center; gap:0.4rem;">
+<span style="font-size:1.8em; line-height:1; display:inline-block; transform: translateY(-0.1em);">⟳</span>
+<span>Replay chord</span>
+</button>
       <input type="text" inputmode="decimal" id="guessInput" placeholder="Enter set…">
       <button id="submitBtn">Submit Guess</button>
     </section>
+    <div class="section-line"></div>
 
-    <p id="feedback"></p>
-    <p id="summary"></p>
+    <div id="feedbackBox">
+      <div id="feedback"></div>
+      <div id="summary"></div>
+    </div>
   </main>
 
   <script src="app.js"></script>
