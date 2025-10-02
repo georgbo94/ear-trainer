@@ -1,4 +1,4 @@
-const CACHE_NAME = "eartrainer-v5";
+const CACHE_NAME = "eartrainer-v500";
 const FILES_TO_CACHE = [
   "/ear-trainer/",
   "/ear-trainer/index.html",
