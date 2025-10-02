@@ -695,13 +695,13 @@ function updateButtons() {
 
   const submitLabel = `
     <span style="font-size:1.3em; line-height:1;">⏎</span>
-    <span>Submit guess</span>`;
+    <span>Submit Guess</span>`;
 
   if (!cur) {
     if (el.submitBtn) {
       el.submitBtn.innerHTML = `
         <span style="font-size:1.3em; line-height:1;">⏎</span>
-        <span>Submit guess</span>`;
+        <span>Submit Guess</span>`;
       el.submitBtn.style.display = "inline-flex";
       el.submitBtn.style.alignItems = "center";
       el.submitBtn.style.justifyContent = "center";
@@ -1092,6 +1092,7 @@ updateButtons();
 
    
 })();
+
 
 
 
